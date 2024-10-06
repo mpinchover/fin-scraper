@@ -112,7 +112,6 @@ class Yahoo:
 
         return res
 
-    @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
     def get_articles_for_stock(self, driver, url):
         try:
             articles_for_stock = set()
@@ -197,6 +196,7 @@ class Yahoo:
             scrapes.append(scrape)
         scrapes_collection.insert_many(scrapes)
 
+    @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
     def run_scraper(self, stock, timestamp, driver, run_id, url):
         print(f"[scraper] getting articles for url {url}")
         articles_for_stock = self.get_articles_for_stock(driver, url)

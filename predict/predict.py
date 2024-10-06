@@ -253,6 +253,9 @@ class Predict:
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
     def run_analysis(self, run_id, lookback):
         stocks = self.get_stocks_list(run_id, lookback)
+        if not stocks:
+            print(f"[predict] not stocks found for prediction")
+            return 
 
         rows = {}
         current_time = datetime.now().astimezone(timezone.utc)
