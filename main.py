@@ -21,10 +21,15 @@ import requests
 from requests.exceptions import HTTPError
 from tenacity import retry, stop_after_attempt, wait_random
 from dotenv import load_dotenv
+import google.cloud.logging
 
 
 app = Flask(__name__)
 app.debug = True
+
+client = google.cloud.logging.Client()
+client.setup_logging()
+
 load_dotenv()
 
 yahoo_scraper = Yahoo()
@@ -73,14 +78,12 @@ def execute_scrape_jobs():
         print(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
-# db user is root, password is root
+
 @app.route("/")
 def hello_world():
-    print("api route for /")
-    logging.info("api route for /")
-    """Example Hello World route."""
-    name = os.environ.get("NAME", "World")
-    return f"Hello {name}!"
+    logging.info("You have created a log")
+    logging.error("You have created an error log")
+    return f"Hello world!"
 
 
 if __name__ == "__main__":
