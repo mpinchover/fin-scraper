@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from yahoo.yahoo import Yahoo
 from predict.predict import Predict
 import logging
+from logging import Formatter, FileHandler
 from datetime import datetime, timezone
 import time
 import threading
@@ -21,23 +22,15 @@ import requests
 from requests.exceptions import HTTPError
 from tenacity import retry, stop_after_attempt, wait_random
 from dotenv import load_dotenv
-import google.cloud.logging
-
+from google.cloud import logging as gcp_logging
+import sys
 
 app = Flask(__name__)
 app.debug = True
-
-logging.basicConfig(level=logging.INFO)
-client = google.cloud.logging.Client()
-client.setup_logging()
-
-
 load_dotenv()
 
-yahoo_scraper = Yahoo()
-pred = Predict()
-
-
+yahoo_scraper = Yahoo(app.logger)
+pred = Predict(app.logger)
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -51,8 +44,8 @@ def predict():
         ts = pred.start(lookback)
         return {"success": True, "timestamp": 123}
     except Exception as e:
-        print(f"[scraper: error is {e}]")
-        print(traceback.format_exc())
+        app.logger.error(f"[scraper: error is {e}]")
+        app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/execute-scrape-jobs", methods=["POST"])
@@ -79,16 +72,72 @@ def execute_scrape_jobs():
 
         return jsonify({"success": True, "elapsed_time": f"{total_elapsed_time}s", "run_id": run_id})
     except Exception as e:
-        print(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/")
 def hello_world():
-    logging.info("You have created a log")
-    logging.error("You have created an error log")
+    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "svc_acc_key.json"
+    # print("GOOGLE CREDS ARE ")
+    # app.logger.info('second test message...')
+
+    # logging_client = google.cloud.logging.Client()
+    # logging_client.setup_logging()
+    # logging_handler.info("NEW MESSAGE")
+    # logger.info("Example message")
+
+    
+    # # logger = logging.getLogger(__name__)
+    # # logger.info('my log entry')
+    # # logging_client = google.cloud.logging.Client()
+    # # logging_client = google.cloud.logging.Client()
+    # # logging_handler = logging_client.setup_logging()
+    # # app.logger.info("Example message")
+
+   
+
+    # # print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+
+    # logger = logging_client.logger("NAME")
+
+    # logger.log_text(
+    #     f"THIS IS A TEST LOG", 
+    #     severity="INFO"
+    # )
+
+    # logging.info("You have created a log")
+    # logging.error("You have created an error log")
     return f"Hello world!"
 
 
 if __name__ == "__main__":
+    #  # Create the GCP logging client
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "svc_acc_key.json"
+    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
+    
+    # Create a separate logger for your application
+    app_logger = logging.getLogger("my_app_logger")
+    app_logger.setLevel(logging.DEBUG)
+    
+    # Remove any existing handlers for this logger
+    for handler in app_logger.handlers[:]:
+        app_logger.removeHandler(handler)
+
+    # Configure logging to GCP
+    gcp_handler = client.get_default_handler()
+    app_logger.addHandler(gcp_handler)
+
+    # Configure logging to stdout
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.DEBUG)
+    app_logger.addHandler(stream_handler)
+   
+    # Use the app logger to log messages
+    app_logger.info('first test message...')
+    
+    # Replace the default Flask logger with the custom logger
+    app.logger = app_logger
+
+    # logging.error('first test message...')
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

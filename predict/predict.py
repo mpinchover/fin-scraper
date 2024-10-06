@@ -14,9 +14,10 @@ model = "gpt-4o-mini"
 MAX_LEN_WORDS_PER_REQ = 60000
 
 class Predict:
-    def __init__(self):
+    def __init__(self, logger):
         self.set_envs()
         self.db = None
+        self.logger = logger
         
     def get_db(self):
         if self.db is None: 
@@ -60,11 +61,11 @@ class Predict:
             blob = self.bucket.blob(key)
             content = blob.download_as_string()
             if not content:
-                print("Couldn't get article content from bucket")
+                self.logger.info("Couldn't get article content from bucket")
                 continue
 
             if len(content) < 100:
-                print("article is too short, skipping")
+                self.logger.info("article is too short, skipping")
                 continue 
             
             try:
@@ -99,7 +100,7 @@ class Predict:
         blob_filtered = self.bucket.blob(key_filtered)
         csv_data_filtered = df_filtered.to_csv(index=False)
         blob_filtered.upload_from_string(csv_data_filtered, content_type='text/csv')
-        print(f"saved {lookback}_predictions.csv")
+        self.logger.info(f"saved {lookback}_predictions.csv")
 
     def generate_analysis_for_article(self, stock_sym, article):
         client = OpenAI()
@@ -135,7 +136,7 @@ class Predict:
         if "published_at" in file_content_formatted:
             time_as_str = file_content_formatted["published_at"]
             if not time_as_str:
-                print("time not found for ", file_content_formatted["title"])
+                self.logger.info("time not found for ", file_content_formatted["title"])
                 return 
             
             if source == 'cnbc':
@@ -149,16 +150,16 @@ class Predict:
         return published_at
 
     def generate_analysis_for_stock(self, stock_sym, scrapes_for_stock):
-        print(f"Generate analysis for stock {stock_sym}")
+        self.logger.info(f"Generate analysis for stock {stock_sym}")
         # you need to get all the articles into an array based on the scrapes
 
         saved_articles = self.collect_saved_articles_from_storage(scrapes_for_stock)
-        print(f"Got saved articles of length {len(saved_articles)} for stock {stock_sym}")
+        self.logger.info(f"Got saved articles of length {len(saved_articles)} for stock {stock_sym}")
 
         all_responses = []
         for article in saved_articles:
             if "content" not in article:
-                print("skipping openai, 'content' not found in article")
+                self.logger.info("skipping openai, 'content' not found in article")
                 continue 
             article_content = article['content']
 
@@ -172,7 +173,7 @@ class Predict:
                 else:
                     all_responses.append("NA")
             except Exception as e:
-                print(f"failure calling openai: {e}")
+                self.logger.error(f"failure calling openai: {e}")
                 
         return all_responses
 
@@ -215,7 +216,7 @@ class Predict:
     def get_stocks_list(self, run_id, lookback): 
         cur_time = datetime.now(timezone.utc)
 
-        print(f"[predict] Get stocks list with lookback {lookback}, from time {cur_time}")
+        self.logger.info(f"[predict] Get stocks list with lookback {lookback}, from time {cur_time}")
     
         lookback_from = cur_time - timedelta(hours=lookback) # change this to 6 hours lookback
         dup_articles_set = set()
@@ -245,7 +246,7 @@ class Predict:
                 
             recent_scrapes_dict[stock].append(scrape)
         # should convert this to a map and list stock -> dup
-        print(f"[predict] found {len(dup_articles_set)} duplicate articles")
+        self.logger.info(f"[predict] found {len(dup_articles_set)} duplicate articles")
         return recent_scrapes_dict
     
     
@@ -254,7 +255,7 @@ class Predict:
     def run_analysis(self, run_id, lookback):
         stocks = self.get_stocks_list(run_id, lookback)
         if not stocks:
-            print(f"[predict] not stocks found for prediction")
+            self.logger.info(f"[predict] not stocks found for prediction")
             return 
 
         rows = {}

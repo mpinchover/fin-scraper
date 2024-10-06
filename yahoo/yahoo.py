@@ -27,9 +27,10 @@ import uuid
 import traceback
 
 class Yahoo:
-    def __init__(self):
+    def __init__(self, logger):
         self.set_envs()
         self.db = None
+        self.logger = logger
 
     def get_db(self):
         if self.db is None: 
@@ -68,7 +69,7 @@ class Yahoo:
             article_text = []
             article_content = soup.find('div', class_=("caas-body", "body yf-5ef8bf"))
             if not article_content:
-                print(f"skipped link: {link}")
+                self.logger.info(f"skipped link: {link}")
                 return
                 
             p_tags = article_content.find_all('p')
@@ -82,8 +83,8 @@ class Yahoo:
             article_text_str = '\n'.join(article_text)
             return article_text_str
         except Exception as e:
-            print(e)
-            print("[scraper]: unable to scrape article content")
+            self.logger.error(e)
+            self.logger.error("[scraper]: unable to scrape article content")
             return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
@@ -95,7 +96,7 @@ class Yahoo:
         title = driver.title
         published_at = self.get_published_at(soup)
         if not published_at:
-            print("[scraper] No published at found for ", title)
+            self.logger.info("[scraper] No published at found for ", title)
 
         article_text_str = self.get_article_content(soup, link)
         if not article_text_str:
@@ -121,12 +122,12 @@ class Yahoo:
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
             if not filtered_stories:
-                print(f"[scraper]: ]No filtered stories found for url {url}")
+                self.logger.info(f"[scraper]: ]No filtered stories found for url {url}")
                 return 
                 
             atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
             if not atags:
-                print(f"scraper] No atags found for url {url}")
+                self.logger.info(f"scraper] No atags found for url {url}")
                 return 
                 
             for atag in atags:
@@ -137,7 +138,7 @@ class Yahoo:
                 articles_for_stock.add(link)
             return list(articles_for_stock)
         except Exception as e:
-            print(e)
+            self.logger.error(e)
             raise ValueError("[scraper]: unable to scrape articles for stock")
 
     def get_stories_for_stock(self, driver, articles_for_stock, stock):
@@ -148,7 +149,7 @@ class Yahoo:
 
         # these are all the stories for the stock
         for link in list(articles_for_stock):
-            print(f"[scraper] scraping {link}, stock {stock}")
+            self.logger.info(f"[scraper] scraping {link}, stock {stock}")
             story = self.scrape_recent_news_for_sym(link, driver)
             if not story:
                 continue
@@ -175,7 +176,7 @@ class Yahoo:
             try: 
                 new_blob.upload_from_string(json.dumps(article))
             except Exception as e:
-                print("[scraper]: failed to save article to cloud bucket")
+                self.logger.info("[scraper]: failed to save article to cloud bucket")
                 continue
 
             app_env = os.environ.get('APP_ENV', 'LOCAL')
@@ -198,24 +199,24 @@ class Yahoo:
 
     @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
     def run_scraper(self, stock, timestamp, run_id, url, opts, svc):
-        print(f"[scraper] getting articles for url {url}")
+        self.logger.info(f"[scraper] getting articles for url {url}")
         driver = webdriver.Chrome(service=svc, options=opts)
 
         articles_for_stock = self.get_articles_for_stock(driver, url)
         if not articles_for_stock:
-            print(f"[scraper] no articles found for stock {stock}")
+            self.logger.info(f"[scraper] no articles found for stock {stock}")
             return
             
         stories_for_stock = self.get_stories_for_stock(driver, articles_for_stock, stock)
         if not stories_for_stock:
-            print(f"No stories found for stock {stock}")
+            self.logger.info(f"No stories found for stock {stock}")
             return
 
-        print(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
-        print(f"[scraper] Saving articles to storage for stock {stock}")
+        self.logger.info(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
+        self.logger.info(f"[scraper] Saving articles to storage for stock {stock}")
         self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
         driver.quit()
-        print(f"[scraper] completed for stock {stock}, ts: {timestamp}")
+        self.logger.info(f"[scraper] completed for stock {stock}, ts: {timestamp}")
 
     def run_job(self, stock, timestamp, sema, run_id, opts, svc):
         sema.acquire()
@@ -224,9 +225,9 @@ class Yahoo:
         try: 
             self.run_scraper(stock, timestamp, run_id, url, opts, svc)
         except Exception as e:
-            print(e)
-            print(traceback.format_exc())
-            print(f"[scraper] failed on stock {stock}")
+            self.logger.error(e)
+            self.logger.error(traceback.format_exc())
+            self.logger.error(f"[scraper] failed on stock {stock}")
         finally:
             sema.release()
 
@@ -235,7 +236,7 @@ class Yahoo:
             
     def start(self, stocks):
         run_id = str(uuid.uuid4())
-        print(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
+        self.logger.info(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
 
         opts = webdriver.ChromeOptions()
 
@@ -264,7 +265,7 @@ class Yahoo:
         for thread in threads:
             thread.join()
 
-        print(f"[scraper] Yahoo scraper completed with run_id {run_id}")
+        self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}")
         return run_id
 
         
