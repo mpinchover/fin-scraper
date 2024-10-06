@@ -41,7 +41,7 @@ class Yahoo:
     def set_envs(self):
         path = "/app/svc_acc_key.json"
 
-        if os.environ.get("ENV_PATH", None) != "PRODUCTION":
+        if os.environ.get("APP_ENV", None) != "PRODUCTION":
             path = "../svc_acc_key.json"
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
         self.storage_client = storage.Client.from_service_account_json(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
