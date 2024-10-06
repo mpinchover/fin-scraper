@@ -1,5 +1,5 @@
 docker build -t markets-scraper .
-docker run --rm -p 5000:5000 markets-scraper
+docker run --env-file .env --rm -p 5000:5000 markets-scraper
 gcloud run deploy
 gcloud run deploy --memory 4Gi --timeout=10m
 
@@ -21,7 +21,7 @@ curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" -
 https://stackoverflow.com/questions/49045725/gsutil-gcloud-storage-file-listing-sorted-date-descending
 
 Connect to mongo server
-mongosh "mongodb+srv://root:root@cluster0.hgj8f.mongodb.net/markets?retryWrites=true"
+mongosh "CONNECTION_STRING"
 
 curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" -d '{"lookback": "24"}'
 
@@ -53,4 +53,6 @@ INSTALL DOCKER
 https://docs.sevenbridges.com/docs/install-docker-on-linux
 
 COPY file
-gcloud compute scp svc_acc_key.json markets-scraper:PATH_TO_DIR --zone ZONE
+gcloud compute scp .env markets-scraper:/home/mattpinchover/scraper/fin-scraper --zone us-central1-c
+docker run --env-file .env --rm -p 5000:5000 markets-scraper
+gcloud compute ssh --project=awesome-pilot-437816-c2 --zone=us-central1-c --ssh-flag="-ServerAliveInterval=30" markets-scraper
