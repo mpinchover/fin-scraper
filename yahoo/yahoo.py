@@ -259,6 +259,7 @@ class Yahoo:
 
         # run http requests in threads
         for thread in threads:
+            time.sleep(10)
             thread.start()
         
         for thread in threads:
