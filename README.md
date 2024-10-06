@@ -1,5 +1,5 @@
-docker build -t dockerized-python-app .
-docker run --rm -p 8080:8080 -e PORT=8080 dockerized-python-app
+docker build -t markets-scraper .
+docker run --rm -p 5000:5000 markets-scraper
 gcloud run deploy
 gcloud run deploy --memory 4Gi --timeout=10m
 
@@ -51,3 +51,6 @@ gcloud config set project $MY_PROJECT_ID
 
 INSTALL DOCKER
 https://docs.sevenbridges.com/docs/install-docker-on-linux
+
+COPY file
+gcloud compute scp svc_acc_key.json markets-scraper:PATH_TO_DIR --zone ZONE

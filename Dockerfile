@@ -11,7 +11,7 @@ RUN pip install -r requirements.txt
 
 ENV NAME Johnny
 ENV PORT 5000
-ENV APP_ENV production
+ENV APP_ENV PRODUCTION
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . .
