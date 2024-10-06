@@ -197,7 +197,7 @@ class Yahoo:
         scrapes_collection.insert_many(scrapes)
 
     @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
-    def run_scraper(self, stock, timestamp, driver, run_id, url, opts, svc):
+    def run_scraper(self, stock, timestamp, run_id, url, opts, svc):
         print(f"[scraper] getting articles for url {url}")
         driver = webdriver.Chrome(service=svc, options=opts)
 
