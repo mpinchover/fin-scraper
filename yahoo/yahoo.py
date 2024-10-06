@@ -214,19 +214,10 @@ class Yahoo:
         self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
         print(f"[scraper] completed for stock {stock}, ts: {timestamp}")
 
-    def run_job(self, stock, timestamp, sema, run_id):
+    def run_job(self, stock, timestamp, sema, run_id, opts, svc):
         sema.acquire()
-
         url = f"https://finance.yahoo.com/quote/{stock}"
-        opts = webdriver.ChromeOptions()
-
-        opts.add_argument("--headless")
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("window-size=1920,1080")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
-        svc = ChromeService(ChromeDriverManager().install())
-
+       
         driver = None
         try: 
             driver = webdriver.Chrome(service=svc, options=opts)
@@ -246,6 +237,15 @@ class Yahoo:
     def start(self, stocks):
         run_id = str(uuid.uuid4())
         print(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
+
+        opts = webdriver.ChromeOptions()
+
+        opts.add_argument("--headless")
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("window-size=1920,1080")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
+        svc = ChromeService(ChromeDriverManager().install())
     
         utc_now = datetime.now(timezone.utc)
         maxthreads = 5
@@ -253,7 +253,7 @@ class Yahoo:
         threads = []
 
         for stock in stocks:
-            args = (stock, utc_now, sema, run_id)
+            args = (stock, utc_now, sema, run_id, opts, svc)
             thread = threading.Thread(target=self.run_job,args=args)
             threads.append(thread)
 
