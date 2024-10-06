@@ -197,8 +197,10 @@ class Yahoo:
         scrapes_collection.insert_many(scrapes)
 
     @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
-    def run_scraper(self, stock, timestamp, driver, run_id, url):
+    def run_scraper(self, stock, timestamp, driver, run_id, url, opts, svc):
         print(f"[scraper] getting articles for url {url}")
+        driver = webdriver.Chrome(service=svc, options=opts)
+
         articles_for_stock = self.get_articles_for_stock(driver, url)
         if not articles_for_stock:
             print(f"[scraper] no articles found for stock {stock}")
@@ -212,23 +214,20 @@ class Yahoo:
         print(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
         print(f"[scraper] Saving articles to storage for stock {stock}")
         self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
+        driver.quit()
         print(f"[scraper] completed for stock {stock}, ts: {timestamp}")
 
     def run_job(self, stock, timestamp, sema, run_id, opts, svc):
         sema.acquire()
         url = f"https://finance.yahoo.com/quote/{stock}"
        
-        driver = None
         try: 
-            driver = webdriver.Chrome(service=svc, options=opts)
-            self.run_scraper(stock, timestamp, driver, run_id, url)
+            self.run_scraper(stock, timestamp, driver, run_id, url, opts, svc)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
             print(f"[scraper] failed on stock {stock}")
         finally:
-            if driver:
-                driver.quit()
             sema.release()
 
 
