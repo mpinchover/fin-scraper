@@ -222,7 +222,7 @@ class Yahoo:
         url = f"https://finance.yahoo.com/quote/{stock}"
        
         try: 
-            self.run_scraper(stock, timestamp, driver, run_id, url, opts, svc)
+            self.run_scraper(stock, timestamp, run_id, url, opts, svc)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
