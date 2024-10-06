@@ -1,5 +1,9 @@
 docker build -t markets-scraper .
-docker run --env-file .env --rm -p 5000:5000 markets-scraper
+docker run -v /dev/shm:/dev/shm -it --env-file .env --rm -p 5000:5000 markets-scraper
+
+curl -X POST "localhost:5000/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
+curl -X POST "localhost:8080/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
+
 gcloud run deploy
 gcloud run deploy --memory 4Gi --timeout=10m
 
@@ -32,9 +36,13 @@ GET NUM DOCS PUBLISHED AFTER SCRAPED TIME
 db.scrapes.find({ scraped_at: { $gt: ISODate("2024-10-05T20:00:00Z") } }).count()
 
 RUN ALL JOBS
-curl -X POST "localhost:8080/execute-jobs" \
+curl -X POST "localhost:5000/execute-scrape-jobs" \
 -H "Content-Type: application/json" \
--d '{"stocks": ["wmt", "hd", "amzn", "msft", "nvda", "jpm", "t", "vz", "gs", "ge", "XOM", "googl", "mck", "cvx", "abc", "cost", "f", "vlo", "psx", "ci", "JBL", "AAL", "MDLZ", "TIAA", "CI", "PUSH", "COP", "GIS"]}'
+-d '{"stocks": ["wmt", "hd", "amzn", "msft", "nvda", "jpm", "t", "vz", "gs", "ge", "XOM", "googl", "mck", "cvx", "abc", "cost", "f", "vlo", "psx", "ci", "JBL", "AAL", "MDLZ", "TIAA", "CI", "PUSH", "COP", "GIS"], "lookback": 24}'
+
+curl -X POST "localhost:5000/execute-scrape-jobs" \
+-H "Content-Type: application/json" \
+-d '{"stocks": ["wmt"], "lookback": 24}'
 
 curl -X POST "localhost:8080/execute-jobs" \
 -H "Content-Type: application/json" \
@@ -53,6 +61,4 @@ INSTALL DOCKER
 https://docs.sevenbridges.com/docs/install-docker-on-linux
 
 COPY file
-gcloud compute scp .env markets-scraper:/home/mattpinchover/scraper/fin-scraper --zone us-central1-c
-docker run --env-file .env --rm -p 5000:5000 markets-scraper
-gcloud compute ssh --project=awesome-pilot-437816-c2 --zone=us-central1-c --ssh-flag="-ServerAliveInterval=30" markets-scraper
+gcloud compute scp .env markets-scraper:PATH/ON/MACHINE --zone ZONE
