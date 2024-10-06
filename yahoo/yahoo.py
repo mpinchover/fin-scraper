@@ -248,7 +248,7 @@ class Yahoo:
         svc = ChromeService(ChromeDriverManager().install())
     
         utc_now = datetime.now(timezone.utc)
-        maxthreads = 5
+        maxthreads = 3
         sema = threading.Semaphore(value=maxthreads)
         threads = []
 

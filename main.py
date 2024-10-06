@@ -27,13 +27,17 @@ import google.cloud.logging
 app = Flask(__name__)
 app.debug = True
 
+logging.basicConfig(level=logging.INFO)
 client = google.cloud.logging.Client()
 client.setup_logging()
+
 
 load_dotenv()
 
 yahoo_scraper = Yahoo()
 pred = Predict()
+
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
