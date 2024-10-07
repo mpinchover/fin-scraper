@@ -4,11 +4,11 @@ from bs4 import BeautifulSoup
 import random
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from chromedriver_py import binary_path
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 import time
 import os
 from datetime import datetime, timezone
@@ -117,12 +117,15 @@ class Yahoo:
         try:
             articles_for_stock = set()
             driver.get(url)
-            time.sleep(5)
+            wait = WebDriverWait(driver, 20)  # You can adjust the timeout
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[class*='filtered-stories']")))
+            
             main_page_source = driver.page_source
             soup = BeautifulSoup(driver.page_source, 'html.parser')
+
             filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
             if not filtered_stories:
-                self.logger.info(f"[scraper]: ]No filtered stories found for url {url}")
+                self.logger.info(f"[scraper]: No filtered stories found for url {url}")
                 return 
                 
             atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
