@@ -228,9 +228,9 @@ class Yahoo:
             scrapes.append(scrape)
         scrapes_collection.insert_many(scrapes)
 
-    def run_scraper(self, stock, timestamp, run_id, opts, svc, worker_idx):
+    def run_scraper(self, stock, timestamp, run_id, opts, svc):
         url = f"https://finance.yahoo.com/quote/{stock}"
-        self.logger.info(f"[scraper] getting articles for url {url}, worker {worker_idx}")
+        self.logger.info(f"[scraper] getting articles for url {url}")
 
         try:
             articles_for_stock = self.get_articles_for_stock(url, opts, svc)
@@ -252,8 +252,62 @@ class Yahoo:
             raise ValueError(e)
         
 
-    def run_job(self, stock, timestamp, sema, run_id, worker_idx):
-        sema.acquire()       
+    # def run_job(self, stock, timestamp, sema, run_id, worker_idx):
+    #     sema.acquire()       
+    #     opts = webdriver.ChromeOptions()
+
+    #     opts.add_argument("--headless")
+    #     opts.add_argument("--disable-gpu")
+    #     opts.add_argument("window-size=1920,1080")
+    #     opts.add_argument("--no-sandbox")
+    #     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
+    #     svc = ChromeService(ChromeDriverManager().install())
+
+    #     try: 
+    #         self.run_scraper(stock, timestamp, run_id, opts, svc, worker_idx)
+    #         self.logger.info(f"[scraper] SUCCESS on stock {stock}")
+    #     except Exception as e:
+    #         self.logger.error(e)
+    #         self.logger.error(traceback.format_exc())
+    #         self.logger.error(f"[scraper] FAILED on stock {stock}")
+    #     finally:
+    #         sema.release()
+
+
+    # @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
+            
+    # def start(self, stocks):
+    #     run_id = str(uuid.uuid4())
+    #     self.logger.info(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
+
+       
+    
+    #     utc_now = datetime.now(timezone.utc)
+    #     maxthreads = 3
+    #     sema = threading.Semaphore(value=maxthreads)
+    #     threads = []
+
+    #     for idx, stock in enumerate(stocks):
+    #         args = (stock, utc_now, sema, run_id, idx)
+    #         thread = threading.Thread(target=self.run_job,args=args)
+    #         threads.append(thread)
+
+    #     # run http requests in threads
+    #     for thread in threads:
+    #         time.sleep(10)
+    #         thread.start()
+        
+    #     for thread in threads:
+    #         thread.join()
+
+    #     self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}")
+    #     return run_id
+
+    def start(self, stocks):
+        run_id = str(uuid.uuid4())
+        self.logger.info(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
+        utc_now = datetime.now(timezone.utc)
+
         opts = webdriver.ChromeOptions()
 
         opts.add_argument("--headless")
@@ -263,44 +317,14 @@ class Yahoo:
         opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
         svc = ChromeService(ChromeDriverManager().install())
 
-        try: 
-            self.run_scraper(stock, timestamp, run_id, opts, svc, worker_idx)
-            self.logger.info(f"[scraper] SUCCESS on stock {stock}")
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.error(traceback.format_exc())
-            self.logger.error(f"[scraper] FAILED on stock {stock}")
-        finally:
-            sema.release()
-
-
-    # @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
-            
-    def start(self, stocks):
-        run_id = str(uuid.uuid4())
-        self.logger.info(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
-
-       
-    
-        utc_now = datetime.now(timezone.utc)
-        maxthreads = 3
-        sema = threading.Semaphore(value=maxthreads)
-        threads = []
-
         for idx, stock in enumerate(stocks):
-            args = (stock, utc_now, sema, run_id, idx)
-            thread = threading.Thread(target=self.run_job,args=args)
-            threads.append(thread)
-
-        # run http requests in threads
-        for thread in threads:
-            time.sleep(10)
-            thread.start()
+            try: 
+                self.run_scraper(stock, utc_now, run_id, opts, svc)
+                self.logger.info(f"[scraper] SUCCESS on stock {stock}")
+            except Exception as e:
+                self.logger.error(e)
+                self.logger.error(traceback.format_exc())
+                self.logger.error(f"[scraper] FAILED on stock {stock}")
         
-        for thread in threads:
-            thread.join()
-
         self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}")
         return run_id
-
-        
