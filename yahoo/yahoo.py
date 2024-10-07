@@ -65,33 +65,41 @@ class Yahoo:
         return datetime_value
 
     def get_article_content(self, soup, link):
+        article_text = []
+        article_content = soup.find('div', class_=("caas-body", "body yf-5ef8bf"))
+        if not article_content:
+            self.logger.info(f"skipped link: {link}")
+            return
+            
+        p_tags = article_content.find_all('p')
+        if not p_tags:
+            return
+            
+        for p_tag in p_tags:
+            ptext = p_tag.get_text().strip()
+            article_text.append(ptext)
+            
+        article_text_str = '\n'.join(article_text)
+        return article_text_str
+ 
+
+    def wait_for_article_body(self, driver):
         try:
-            article_text = []
-            article_content = soup.find('div', class_=("caas-body", "body yf-5ef8bf"))
-            if not article_content:
-                self.logger.info(f"skipped link: {link}")
-                return
-                
-            p_tags = article_content.find_all('p')
-            if not p_tags:
-                return
-                
-            for p_tag in p_tags:
-                ptext = p_tag.get_text().strip()
-                article_text.append(ptext)
-                
-            article_text_str = '\n'.join(article_text)
-            return article_text_str
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.error("[scraper]: unable to scrape article content")
-            return None
+            # Wait up to 20 seconds for the element with both classes to appear
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.body.yf-5ef8bf"))
+            )
+            return True
+
+        except Exception:
+            # If the timeout occurs, just return False and move forward without raising or logging an error
+            return False
 
     @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
     def scrape_recent_news_for_sym(self, link, driver):
         driver.get(link)
-        time.sleep(3)
-
+        self.wait_for_article_body(driver)
+    
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         title = driver.title
         published_at = self.get_published_at(soup)
@@ -113,52 +121,72 @@ class Yahoo:
 
         return res
 
-    def get_articles_for_stock(self, driver, url):
+    def wait_for_stock_article_links(self, driver):
         try:
-            articles_for_stock = set()
-            driver.get(url)
+            # Wait up to 20 seconds for the element with both classes to appear
             wait = WebDriverWait(driver, 20)  # You can adjust the timeout
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[class*='filtered-stories']")))
-            
-            main_page_source = driver.page_source
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            return True
 
-            filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
-            if not filtered_stories:
-                self.logger.info(f"[scraper]: No filtered stories found for url {url}")
-                return 
-                
-            atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
-            if not atags:
-                self.logger.info(f"scraper] No atags found for url {url}")
-                return 
-                
-            for atag in atags:
-                link = atag.get('href')
-                if not link:
-                    continue
+        except Exception:
+            # If the timeout occurs, just return False and move forward without raising or logging an error
+            return False
+
+    @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
+    def get_articles_for_stock(self, url, opts, svc):
+        try:
+            with webdriver.Chrome(service=svc, options=opts) as driver:
+                articles_for_stock = set()
+                driver.get(url)
+                self.wait_for_stock_article_links(driver)
+               
+                main_page_source = driver.page_source
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+                filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
+                if not filtered_stories:
+                    self.logger.info(f"[scraper]: No filtered stories found for url {url}")
+                    return 
                     
-                articles_for_stock.add(link)
-            return list(articles_for_stock)
+                atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
+                if not atags:
+                    self.logger.info(f"scraper] No atags found for url {url}")
+                    return 
+                    
+                for atag in atags:
+                    link = atag.get('href')
+                    if not link:
+                        continue
+                        
+                    articles_for_stock.add(link)
+                return list(articles_for_stock)
         except Exception as e:
-            self.logger.error(e)
-            raise ValueError("[scraper]: unable to scrape articles for stock")
+            print(e)
+            raise ValueError(e)
+  
 
-    def get_stories_for_stock(self, driver, articles_for_stock, stock):
+    
+    def get_stories_for_stock(self, articles_for_stock, stock, opts, svc):
         if not articles_for_stock:
             return
 
-        stories_for_stock = []
+        with webdriver.Chrome(service=svc, options=opts) as driver:
+            stories_for_stock = []
 
-        # these are all the stories for the stock
-        for link in list(articles_for_stock):
-            self.logger.info(f"[scraper] scraping {link}, stock {stock}")
-            story = self.scrape_recent_news_for_sym(link, driver)
-            if not story:
-                continue
-            stories_for_stock.append(story)
-        
-        return stories_for_stock
+            # these are all the stories for the stock
+            for link in list(articles_for_stock):
+                self.logger.info(f"[scraper] scraping {link}, stock {stock}")
+                try: 
+                    story = self.scrape_recent_news_for_sym(link, driver)
+                    if not story:
+                        continue
+                    stories_for_stock.append(story)
+                except Exception as e:
+                    print("Failed to get story for ", link)
+                    continue
+            
+            return stories_for_stock
+    
 
     def save_articles_to_storage(self, articles, stock_sym, timestamp, run_id):
         if not articles:
@@ -200,37 +228,48 @@ class Yahoo:
             scrapes.append(scrape)
         scrapes_collection.insert_many(scrapes)
 
-    @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
     def run_scraper(self, stock, timestamp, run_id, opts, svc, worker_idx):
         url = f"https://finance.yahoo.com/quote/{stock}"
-
         self.logger.info(f"[scraper] getting articles for url {url}, worker {worker_idx}")
-        driver = webdriver.Chrome(service=svc, options=opts)
 
-        articles_for_stock = self.get_articles_for_stock(driver, url)
-        if not articles_for_stock:
-            self.logger.info(f"[scraper] no articles found for stock {stock}")
-            return
-            
-        stories_for_stock = self.get_stories_for_stock(driver, articles_for_stock, stock)
-        if not stories_for_stock:
-            self.logger.info(f"No stories found for stock {stock}")
-            return
+        try:
+            articles_for_stock = self.get_articles_for_stock(url, opts, svc)
+            if not articles_for_stock:
+                self.logger.info(f"[scraper] no articles found for stock {stock}")
+                return
+                
+            stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock, opts, svc)
+            if not stories_for_stock:
+                self.logger.info(f"No stories found for stock {stock}")
+                return
 
-        self.logger.info(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
-        self.logger.info(f"[scraper] Saving articles to storage for stock {stock}")
-        self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
-        driver.quit()
-        self.logger.info(f"[scraper] completed for stock {stock}, ts: {timestamp}")
+            self.logger.info(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
+            self.logger.info(f"[scraper] Saving articles to storage for stock {stock}")
+            self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
+            self.logger.info(f"[scraper] completed for stock {stock}, ts: {timestamp}")
+        except Exception as e:
+            print(e)
+            raise ValueError(e)
+        
 
-    def run_job(self, stock, timestamp, sema, run_id, opts, svc, worker_idx):
+    def run_job(self, stock, timestamp, sema, run_id, worker_idx):
         sema.acquire()       
+        opts = webdriver.ChromeOptions()
+
+        opts.add_argument("--headless")
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("window-size=1920,1080")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
+        svc = ChromeService(ChromeDriverManager().install())
+
         try: 
             self.run_scraper(stock, timestamp, run_id, opts, svc, worker_idx)
+            self.logger.info(f"[scraper] SUCCESS on stock {stock}")
         except Exception as e:
             self.logger.error(e)
             self.logger.error(traceback.format_exc())
-            self.logger.error(f"[scraper] failed on stock {stock}")
+            self.logger.error(f"[scraper] FAILED on stock {stock}")
         finally:
             sema.release()
 
@@ -241,14 +280,7 @@ class Yahoo:
         run_id = str(uuid.uuid4())
         self.logger.info(f"[scraper] Starting Yahoo scraper on {len(stocks)} stocks, run id {run_id}")
 
-        opts = webdriver.ChromeOptions()
-
-        opts.add_argument("--headless")
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("window-size=1920,1080")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
-        svc = ChromeService(ChromeDriverManager().install())
+       
     
         utc_now = datetime.now(timezone.utc)
         maxthreads = 3
@@ -256,7 +288,7 @@ class Yahoo:
         threads = []
 
         for idx, stock in enumerate(stocks):
-            args = (stock, utc_now, sema, run_id, opts, svc, idx)
+            args = (stock, utc_now, sema, run_id, idx)
             thread = threading.Thread(target=self.run_job,args=args)
             threads.append(thread)
 

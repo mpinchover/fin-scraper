@@ -66,3 +66,6 @@ gcloud compute scp .env markets-scraper:PATH/ON/MACHINE --zone ZONE
 LOGS
 https://console.cloud.google.com/logs/query;query=severity%3DINFO;cursorTimestamp=2024-10-06T23:17:36.619774Z;duration=PT30S?authuser=1&hl=en&project=awesome-pilot-437816-c2
 Just set severity=INFO
+
+RESTART DOCKER
+sudo systemctl restart docker
