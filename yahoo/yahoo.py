@@ -96,7 +96,7 @@ class Yahoo:
         title = driver.title
         published_at = self.get_published_at(soup)
         if not published_at:
-            self.logger.info("[scraper] No published at found for ", title)
+            self.logger.info(f"[scraper] No published at found for {title}")
 
         article_text_str = self.get_article_content(soup, link)
         if not article_text_str:
@@ -200,7 +200,7 @@ class Yahoo:
     @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
     def run_scraper(self, stock, timestamp, run_id, opts, svc, worker_idx):
         url = f"https://finance.yahoo.com/quote/{stock}"
-        
+
         self.logger.info(f"[scraper] getting articles for url {url}, worker {worker_idx}")
         driver = webdriver.Chrome(service=svc, options=opts)
 

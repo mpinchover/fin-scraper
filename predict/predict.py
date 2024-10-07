@@ -136,7 +136,7 @@ class Predict:
         if "published_at" in file_content_formatted:
             time_as_str = file_content_formatted["published_at"]
             if not time_as_str:
-                self.logger.info("time not found for ", file_content_formatted["title"])
+                self.logger.info(f"time not found for {file_content_formatted["title"]}")
                 return 
             
             if source == 'cnbc':
