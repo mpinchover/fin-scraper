@@ -25,12 +25,47 @@ from dotenv import load_dotenv
 from google.cloud import logging as gcp_logging
 import sys
 
+def setup_logging(app):
+    print("Setting up logs...")
+
+    path = "/app/svc_acc_key.json"
+    if os.environ.get("APP_ENV", None) != "PRODUCTION":
+        path = "svc_acc_key.json"
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
+    
+    
+    # Create a separate logger for your application
+    app_logger = logging.getLogger("my_app_logger")
+    app_logger.setLevel(logging.DEBUG)
+    
+    # Remove any existing handlers for this logger
+    for handler in app_logger.handlers[:]:
+        app_logger.removeHandler(handler)
+
+    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
+    # Configure logging to GCP
+    client.setup_logging(log_level=logging.DEBUG)
+
+    # Configure logging to stdout
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.DEBUG)
+    app_logger.addHandler(stream_handler)
+   
+    # Use the app logger to log messages
+    app_logger.info('first test message...')
+    
+    # Replace the default Flask logger with the custom logger
+    app.logger = app_logger
+
 app = Flask(__name__)
 app.debug = True
+setup_logging(app)
 load_dotenv()
 
 yahoo_scraper = Yahoo(app.logger)
 pred = Predict(app.logger)
+
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -112,34 +147,6 @@ def hello_world():
 
 
 if __name__ == "__main__":
-    path = "/app/svc_acc_key.json"
-
-    if os.environ.get("APP_ENV", None) != "PRODUCTION":
-        path = "svc_acc_key.json"
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
     
-    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
-    
-    # Configure logging to GCP
-    client.setup_logging(log_level=logging.DEBUG)
-
-    # Create a separate logger for your application
-    app_logger = logging.getLogger("my_app_logger")
-    app_logger.setLevel(logging.DEBUG)
-    
-    # Remove any existing handlers for this logger
-    for handler in app_logger.handlers[:]:
-        app_logger.removeHandler(handler)
-
-    # Configure logging to stdout
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.DEBUG)
-    app_logger.addHandler(stream_handler)
-   
-    # Use the app logger to log messages
-    app_logger.info('first test message...')
-    
-    # Replace the default Flask logger with the custom logger
-    app.logger = app_logger
 
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
