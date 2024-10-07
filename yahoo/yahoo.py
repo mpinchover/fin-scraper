@@ -95,7 +95,7 @@ class Yahoo:
             # If the timeout occurs, just return False and move forward without raising or logging an error
             return False
 
-    @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
+    @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
     def scrape_recent_news_for_sym(self, link, driver):
         driver.get(link)
         self.wait_for_article_body(driver)
@@ -132,7 +132,7 @@ class Yahoo:
             # If the timeout occurs, just return False and move forward without raising or logging an error
             return False
 
-    @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
+    @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
     def get_articles_for_stock(self, url, opts, svc):
         try:
             with webdriver.Chrome(service=svc, options=opts) as driver:
@@ -146,12 +146,12 @@ class Yahoo:
                 filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
                 if not filtered_stories:
                     self.logger.info(f"[scraper]: No filtered stories found for url {url}")
-                    return 
+                    raise ValueError("no stories found")
                     
                 atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
                 if not atags:
                     self.logger.info(f"scraper] No atags found for url {url}")
-                    return 
+                    raise ValueError("no tags found")
                     
                 for atag in atags:
                     link = atag.get('href')
@@ -227,7 +227,7 @@ class Yahoo:
 
             scrapes.append(scrape)
         scrapes_collection.insert_many(scrapes)
-
+    
     def run_scraper(self, stock, timestamp, run_id, opts, svc):
         url = f"https://finance.yahoo.com/quote/{stock}"
         self.logger.info(f"[scraper] getting articles for url {url}")
