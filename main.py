@@ -59,7 +59,7 @@ def setup_logging(app):
 
 app = Flask(__name__)
 app.debug = True
-setup_logging(app)
+# setup_logging(app)
 load_dotenv()
 
 yahoo_scraper = Yahoo(app.logger)
