@@ -119,7 +119,7 @@ if __name__ == "__main__":
         path = "../svc_acc_key.json"
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
     
-    client = gcp_logging.Client(project="markets")
+    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
     
     # Create a separate logger for your application
     app_logger = logging.getLogger("my_app_logger")
