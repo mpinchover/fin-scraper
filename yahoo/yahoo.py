@@ -138,7 +138,9 @@ class Yahoo:
             with webdriver.Chrome(service=svc, options=opts) as driver:
                 articles_for_stock = set()
                 driver.get(url)
-                self.wait_for_stock_article_links(driver)
+                print("Letting page load...")
+                time.sleep(60)
+                # self.wait_for_stock_article_links(driver)
                
                 main_page_source = driver.page_source
                 soup = BeautifulSoup(driver.page_source, 'html.parser')
