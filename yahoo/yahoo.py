@@ -316,7 +316,8 @@ class Yahoo:
         opts.add_argument("--no-sandbox")
         opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
         svc = ChromeService(ChromeDriverManager().install())
-
+        
+        time.sleep(5)
         for idx, stock in enumerate(stocks):
             try: 
                 self.run_scraper(stock, utc_now, run_id, opts, svc)
