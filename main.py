@@ -80,7 +80,7 @@ def execute_scrape_jobs():
 def hello_world():
     # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "svc_acc_key.json"
     # print("GOOGLE CREDS ARE ")
-    # app.logger.info('second test message...')
+    app.logger.info('Creating a logging message')
 
     # logging_client = google.cloud.logging.Client()
     # logging_client.setup_logging()
@@ -113,8 +113,13 @@ def hello_world():
 
 if __name__ == "__main__":
     #  # Create the GCP logging client
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "svc_acc_key.json"
-    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
+    path = "/app/svc_acc_key.json"
+
+    if os.environ.get("APP_ENV", None) != "PRODUCTION":
+        path = "../svc_acc_key.json"
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
+    
+    client = gcp_logging.Client(project="markets")
     
     # Create a separate logger for your application
     app_logger = logging.getLogger("my_app_logger")

@@ -198,8 +198,10 @@ class Yahoo:
         scrapes_collection.insert_many(scrapes)
 
     @retry(stop=stop_after_attempt(10), wait=wait_random(min=25, max=35))
-    def run_scraper(self, stock, timestamp, run_id, url, opts, svc):
-        self.logger.info(f"[scraper] getting articles for url {url}")
+    def run_scraper(self, stock, timestamp, run_id, opts, svc, worker_idx):
+        url = f"https://finance.yahoo.com/quote/{stock}"
+        
+        self.logger.info(f"[scraper] getting articles for url {url}, worker {worker_idx}")
         driver = webdriver.Chrome(service=svc, options=opts)
 
         articles_for_stock = self.get_articles_for_stock(driver, url)
@@ -218,12 +220,10 @@ class Yahoo:
         driver.quit()
         self.logger.info(f"[scraper] completed for stock {stock}, ts: {timestamp}")
 
-    def run_job(self, stock, timestamp, sema, run_id, opts, svc):
-        sema.acquire()
-        url = f"https://finance.yahoo.com/quote/{stock}"
-       
+    def run_job(self, stock, timestamp, sema, run_id, opts, svc, worker_idx):
+        sema.acquire()       
         try: 
-            self.run_scraper(stock, timestamp, run_id, url, opts, svc)
+            self.run_scraper(stock, timestamp, run_id, opts, svc, worker_idx)
         except Exception as e:
             self.logger.error(e)
             self.logger.error(traceback.format_exc())
@@ -252,8 +252,8 @@ class Yahoo:
         sema = threading.Semaphore(value=maxthreads)
         threads = []
 
-        for stock in stocks:
-            args = (stock, utc_now, sema, run_id, opts, svc)
+        for idx, stock in enumerate(stocks):
+            args = (stock, utc_now, sema, run_id, opts, svc, idx)
             thread = threading.Thread(target=self.run_job,args=args)
             threads.append(thread)
 
