@@ -22,49 +22,40 @@ import requests
 from requests.exceptions import HTTPError
 from tenacity import retry, stop_after_attempt, wait_random
 from dotenv import load_dotenv
-from google.cloud import logging as gcp_logging
+import google.cloud.logging as gcp_logging
+from google.cloud import storage
 import sys
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
-def setup_logging(app):
-    print("Setting up logs...")
+load_dotenv()
 
-    path = "/app/svc_acc_key.json"
-    if os.environ.get("APP_ENV", None) != "PRODUCTION":
-        path = "svc_acc_key.json"
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
-    
-    
-    # Create a separate logger for your application
-    app_logger = logging.getLogger("my_app_logger")
-    app_logger.setLevel(logging.DEBUG)
-    
-    # Remove any existing handlers for this logger
-    for handler in app_logger.handlers[:]:
-        app_logger.removeHandler(handler)
+path = "/app/svc_acc_key.json"
+if os.environ.get("APP_ENV", None) != "PRODUCTION":
+    path = "svc_acc_key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
 
-    client = gcp_logging.Client(project="awesome-pilot-437816-c2")
-    # Configure logging to GCP
-    client.setup_logging(log_level=logging.DEBUG)
+logging_client = gcp_logging.Client(project="awesome-pilot-437816-c2")
+logging_handler = logging_client.setup_logging()
 
-    # Configure logging to stdout
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.DEBUG)
-    app_logger.addHandler(stream_handler)
-   
-    # Use the app logger to log messages
-    app_logger.info('first test message...')
-    
-    # Replace the default Flask logger with the custom logger
-    app.logger = app_logger
+stream_handler = logging.StreamHandler()
+logging.getLogger().addHandler(stream_handler)
 
 app = Flask(__name__)
 app.debug = True
-# setup_logging(app)
-load_dotenv()
 
-yahoo_scraper = Yahoo(app.logger)
-pred = Predict(app.logger)
+# build logger
+logger = logging.getLogger(__name__)
 
+# build storage client
+storage_client = storage.Client.from_service_account_json(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+
+uri = os.environ["MONGO_URI"]
+db_client = MongoClient(uri, server_api=ServerApi('1'))
+db = db_client.get_database()
+
+yahoo_scraper = Yahoo(logger, storage_client, db)
+# pred = Predict(app.logger)
 
 
 @app.route("/predict", methods=["POST"])
@@ -101,7 +92,7 @@ def execute_scrape_jobs():
         lookback = int(lookback)
 
         run_id = yahoo_scraper.start(stocks) 
-        pred.start(run_id, lookback)
+        # pred.start(run_id, lookback)
 
         total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds
 
@@ -113,36 +104,9 @@ def execute_scrape_jobs():
 
 @app.route("/")
 def hello_world():
-    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "svc_acc_key.json"
-    # print("GOOGLE CREDS ARE ")
-    app.logger.info('Creating a logging message')
+    logger = logging.getLogger(__name__)
+    logger.info('Creating a logging message')
 
-    # logging_client = google.cloud.logging.Client()
-    # logging_client.setup_logging()
-    # logging_handler.info("NEW MESSAGE")
-    # logger.info("Example message")
-
-    
-    # # logger = logging.getLogger(__name__)
-    # # logger.info('my log entry')
-    # # logging_client = google.cloud.logging.Client()
-    # # logging_client = google.cloud.logging.Client()
-    # # logging_handler = logging_client.setup_logging()
-    # # app.logger.info("Example message")
-
-   
-
-    # # print(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
-
-    # logger = logging_client.logger("NAME")
-
-    # logger.log_text(
-    #     f"THIS IS A TEST LOG", 
-    #     severity="INFO"
-    # )
-
-    # logging.info("You have created a log")
-    # logging.error("You have created an error log")
     return f"Hello world!"
 
 

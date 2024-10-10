@@ -40,7 +40,7 @@ curl -X POST "localhost:5000/execute-scrape-jobs" \
 -H "Content-Type: application/json" \
 -d '{"stocks": ["wmt", "hd", "amzn", "msft", "nvda", "jpm", "t", "vz", "gs", "ge", "XOM", "googl", "mck", "cvx", "abc", "cost", "f", "vlo", "psx", "ci", "JBL", "AAL", "MDLZ", "TIAA", "CI", "PUSH", "COP", "GIS"], "lookback": 24}'
 
-curl -X POST "localhost:5000/execute-scrape-jobs" \
+curl -X POST "localhost:8080/execute-scrape-jobs" \
 -H "Content-Type: application/json" \
 -d '{"stocks": ["wmt"], "lookback": 24}'
 
