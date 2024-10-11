@@ -81,17 +81,17 @@ def execute_scrape_jobs():
 
         # get the stocks list, lookback
         data = request.get_json()
-        stocks = data.get('stocks')
-        lookback = data.get('lookback')
+        num_stocks = data.get('num_stocks')
+        # lookback = data.get('lookback')
 
-        if not stocks:
-            return jsonify({"success": False, "error": "stocks list required"}), 401
-        if not lookback:
-            return jsonify({"success": False, "error": "lookback required"}), 401
+        if not num_stocks:
+            return jsonify({"success": False, "error": "num_stocks required"}), 401
+        # if not lookback:
+        #     return jsonify({"success": False, "error": "lookback required"}), 401
 
-        lookback = int(lookback)
+        # lookback = int(lookback)
 
-        run_id = yahoo_scraper.start(stocks) 
+        run_id = yahoo_scraper.start(num_stocks) 
         # pred.start(run_id, lookback)
 
         total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds

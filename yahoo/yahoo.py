@@ -275,7 +275,7 @@ class Yahoo:
      
     def run_job(self, stock, timestamp, sema, run_id, worker_idx):
         sema.acquire()   
-        self.logger.info(f"Starting scraper for worker {worker_idx}, stock {stock}")
+        self.logger.info(f"Starting scraper for worker {worker_idx}, stock {stock} at time {datetime.now(timezone.utc)}")
         
         opts = webdriver.ChromeOptions()
         app_env = os.environ.get('APP_ENV', 'LOCAL')
@@ -289,7 +289,7 @@ class Yahoo:
         # local dev
         path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
         if platform.system() == "Linux":
-            path = "/webdrivers"
+            path = "/webdrivers/chromedriver"
 
         if not os.path.exists(path):
             self.logger.info(f"Invalid file path, downloading chromedriver")
@@ -321,9 +321,25 @@ class Yahoo:
         }
         runs_collection.insert_one(doc)
 
-    def start(self, stocks):
+    def get_stocks_list(self, num_stocks=None):
+        key = "stocks_list/stocks_list.txt"
+        stock_list_as_blob = self.bucket.blob(key)
+        stock_list = stock_list_as_blob.download_as_string().decode("utf-8-sig")
+        stocks = stock_list.splitlines()
+        stocks = [stock.strip() for stock in stocks if stock.strip()]
+
+        # Optionally limit the number of stocks if num_stocks is provided
+        if num_stocks is not None:
+            stocks = stocks[:num_stocks]
+        
+        return stocks
+
+    def start(self, num_stocks):
         run_id = str(uuid.uuid4())
+                
+        stocks = self.get_stocks_list(num_stocks)
         self.logger.info(f"Starting scrapes for run id: {run_id}, num stocks: {len(stocks)}")
+
         max_threads = 5
         sema = threading.Semaphore(value=max_threads)
         threads = list()
@@ -343,7 +359,7 @@ class Yahoo:
             if idx >= 1 and idx % 10 == 0:
                 self.logger.info("Sleeping for 5 minutes")
                 # time.sleep(300) # 5 min
-                time.sleep(300)
+                time.sleep(900)
         
         for thread in threads:
             thread.join()
