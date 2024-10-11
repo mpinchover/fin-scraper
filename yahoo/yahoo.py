@@ -364,5 +364,5 @@ class Yahoo:
         for thread in threads:
             thread.join()
         
-        self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}")
+        self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}, time {datetime.now(timezone.utc)}")
 
