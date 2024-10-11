@@ -25,6 +25,7 @@ import logging
 from tenacity import retry, stop_after_attempt, wait_random
 import uuid
 import traceback
+import platform
 
 class Yahoo:
     def __init__(self, logger, storage, db):
@@ -284,7 +285,17 @@ class Yahoo:
             opts.add_argument("window-size=1920,1080")
             opts.add_argument("--no-sandbox")
             opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
-        svc = ChromeService(ChromeDriverManager().install())
+        
+        # local dev
+        path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
+        if platform.system() == "Linux":
+            path = "/webdrivers"
+
+        if not os.path.exists(path):
+            self.logger.info(f"Invalid file path, downloading chromedriver")
+            path = ChromeDriverManager().install()
+        
+        svc = ChromeService(path)
         # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
         # svc = ChromeService(path)
         

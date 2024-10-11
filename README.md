@@ -1,5 +1,9 @@
 docker build -t markets-scraper .
 docker run -v /dev/shm:/dev/shm -it --env-file .env --rm -p 5000:5000 markets-scraper
+docker run -v /dev/shm:/dev/shm -v /home/mattpinchover/webdrivers/chromedriver-linux64:/webdrivers -it --env-file .env --rm -p 5000:5000 markets-scraper
+
+Make sure to install chromedriver to /home/mattpinchover/webdrivers/chromedriver-linux64
+wget https://storage.googleapis.com/chrome-for-testing-public/129.0.6668.100/linux64/chromedriver-linux64.zip
 
 curl -X POST "localhost:5000/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
 curl -X POST "localhost:8080/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
