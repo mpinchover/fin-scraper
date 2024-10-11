@@ -44,6 +44,10 @@ curl -X POST "localhost:8080/execute-scrape-jobs" \
 -H "Content-Type: application/json" \
 -d '{"stocks": ["wmt"], "lookback": 24}'
 
+curl -X POST "localhost:5000/execute-scrape-jobs" \
+-H "Content-Type: application/json" \
+-d '{"stocks": ["wmt"], "lookback": 24}'
+
 curl -X POST "localhost:8080/execute-scrape-jobs" \
 -H "Content-Type: application/json" \
 -d '{"stocks": ["VZ", "BMY", "GS", "EPD", "USAA", "PM", "DHR", "NWM", "RAD", "MMM", "SBUX", "QCOM", "NOC", "COF", "TRV", "ARW", "HON", "DG", "DOW", "WHR", "ARMK", "PFGC", "CHSCP", "PBF", "AEP", "NRG", "CBRE", "GPS", "BKR", "DLTR", "LUMN", "PAG", "MU"], "lookback": 24}'

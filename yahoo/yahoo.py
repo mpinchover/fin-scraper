@@ -278,15 +278,15 @@ class Yahoo:
         
         opts = webdriver.ChromeOptions()
         app_env = os.environ.get('APP_ENV', 'LOCAL')
-        if app_env == "LOCAL":
+        if app_env != "LOCAL":
             opts.add_argument("--headless")
             opts.add_argument("--disable-gpu")
             opts.add_argument("window-size=1920,1080")
             opts.add_argument("--no-sandbox")
             opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
-            # svc = ChromeService(ChromeDriverManager().install())
-        path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
-        svc = ChromeService(path)
+        svc = ChromeService(ChromeDriverManager().install())
+        # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
+        # svc = ChromeService(path)
         
 
         try: 
