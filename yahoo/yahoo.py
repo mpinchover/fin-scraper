@@ -123,8 +123,15 @@ class Yahoo:
         return article_text_str
  
 
-    def scrape_recent_news_for_sym(self, link):
-        # print("Link is ", link)
+    def scrape_recent_news_for_sym(self, link, run_id, stock):
+        title = str(uuid.uuid4())
+        res = {
+            "title": title, 
+            "link": link,
+            "run_id": run_id,
+            "stock": stock,
+        }
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -136,7 +143,7 @@ class Yahoo:
             main_page_source = response.text
             soup = BeautifulSoup(main_page_source, 'html.parser')
 
-            title = str(uuid.uuid4())
+           
             published_at = self.get_published_at(soup)
             
             if not published_at:
@@ -144,19 +151,20 @@ class Yahoo:
 
             article_text_str = self.get_article_content(soup, link)
             if not article_text_str:
-                return
+                raise Exception("No article text found")
             
-            res = {
-                "content": article_text_str, 
-                "title": title, 
-                "link": link,
-            }
+            res["content"] = article_text_str
+            res["success"] = True
             if published_at:
                 res["published_at"] = published_at
 
             return res
         except Exception as e:
-            self.logger.error("CAUGHT FAILED SCRAPE")
+            self.logger.error(f"failed scrape for stock {stock}")
+            res["success"] = False
+
+        finally:
+            return res
 
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
     def get_articles_for_stock(self, url):
@@ -196,7 +204,7 @@ class Yahoo:
             self.logger.info(e)
             raise Exception(e)
   
-    def get_stories_for_stock(self, articles_for_stock, stock):
+    def get_stories_for_stock(self, articles_for_stock, stock, run_id):
         if not articles_for_stock:
             return
 
@@ -207,7 +215,7 @@ class Yahoo:
             time.sleep(10)
             self.logger.info(f"[scraper] scraping {link}, stock {stock}")
             try: 
-                story = self.scrape_recent_news_for_sym(link)
+                story = self.scrape_recent_news_for_sym(link, run_id, stock)
                 if not story:
                     continue
 
@@ -256,7 +264,7 @@ class Yahoo:
                 self.logger.info(f"[scraper] no articles found for stock {stock}")
                 return
                 
-            stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock)
+            stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock, run_id)
 
             if not stories_for_stock:
                 self.logger.info(f"No stories found for stock {stock}")
@@ -275,28 +283,7 @@ class Yahoo:
         sema.acquire()   
         self.logger.info(f"Starting scraper for worker {worker_idx}, stock {stock} at time {datetime.now(timezone.utc)}")
         
-        # opts = webdriver.ChromeOptions()
-        app_env = os.environ.get('APP_ENV', 'LOCAL')
-        # if app_env != "LOCAL":
-        #     opts.add_argument("--headless")
-        #     opts.add_argument("--disable-gpu")
-        #     opts.add_argument("window-size=1920,1080")
-        #     opts.add_argument("--no-sandbox")
-        #     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
-        
-        # local dev
-        # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
-        # if platform.system() == "Linux":
-        #     path = "/webdrivers/chromedriver"
-
-        # if not os.path.exists(path):
-        #     self.logger.info(f"Invalid file path, downloading chromedriver")
-        #     path = ChromeDriverManager().install()
-        
-        # svc = ChromeService(path)
-        # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
-        # svc = ChromeService(path)
-        
+        app_env = os.environ.get('APP_ENV', 'LOCAL')        
 
         try: 
             scraped_stock_res = self.run_scraper(stock, run_id, worker_idx)
@@ -349,10 +336,10 @@ class Yahoo:
             time.sleep(5)
             thread.start()
 
-            # if idx >= 1 and idx % 10 == 0:
-            #     self.logger.info("Sleeping for 5 minutes")
-            #     # time.sleep(300) # 5 min
-            #     time.sleep(900)
+            if idx >= 1 and idx % 20 == 0:
+                self.logger.info("Sleeping for 5 minutes")
+                time.sleep(300) # 5 min
+                # time.sleep(900)
         
         for thread in threads:
             thread.join()
