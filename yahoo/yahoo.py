@@ -318,6 +318,15 @@ class Yahoo:
         stocks = [stock.strip() for stock in stocks if stock.strip()]
         
         return stocks
+    
+    def save_run(self, run_id, cur_time):
+        runs_collection = self.db["runs"]
+
+        doc = {
+            "run_id": run_id,
+            "created_at": cur_time,
+        }
+        runs_collection.insert_one(doc)
 
     def start(self, stock_list):
         run_id = str(uuid.uuid4())
@@ -329,7 +338,7 @@ class Yahoo:
         threads = list()
         
         utc_now = datetime.now(timezone.utc)
-        # self.save_run(run_id, utc_now)
+        self.save_run(run_id, utc_now)
 
         for idx, stock in enumerate(stocks):
             args = (stock, utc_now, sema, run_id, idx)

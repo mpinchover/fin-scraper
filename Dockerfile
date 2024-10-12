@@ -15,6 +15,7 @@ ENV APP_ENV PRODUCTION
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . .
+COPY svc_acc_key.json $APP_HOME/svc_acc_key.json
 
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
 
