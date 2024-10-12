@@ -38,8 +38,8 @@ class Yahoo:
         self.bucket = self.storage.get_bucket(STORAGE_BUCKET)
     
     def get_blob_key(self, article, directory):
-            sanitized_title = re.sub(r'[\/:*?"<>|]', '', article['title']).lower().translate(str.maketrans('', '', string.punctuation)).replace(" ", "_")
-            key = f"{directory}/{sanitized_title}.txt"
+            # sanitized_title = re.sub(r'[\/:*?"<>|]', '', article['title']).lower().translate(str.maketrans('', '', string.punctuation)).replace(" ", "_")
+            key = f"{directory}/{article["title"]}.txt"
             new_blob = self.bucket.blob(key)
             return new_blob, key
 
@@ -70,17 +70,17 @@ class Yahoo:
         return scrape
 
 
-    def save_articles_to_storage(self, articles, stock_sym, timestamp, run_id):
+    def save_articles_to_storage(self, articles, stock_sym, run_id):
         if not articles:
             return 
 
-        time_as_str_formatted = timestamp.strftime('%Y-%m-%d-%H-%M-%S').replace('-', '_')
         directory = f"scrapes/{run_id}/{stock_sym.lower()}/yahoo"
         
         scrapes_collection = self.db['scrapes']
         scrapes = []
 
         for article in articles:
+
             scrape = self.create_scrape_record(article, directory, stock_sym, run_id)
             if not scrape:
                 continue
@@ -123,103 +123,99 @@ class Yahoo:
         return article_text_str
  
 
-    # def wait_for_article_body(self, driver):
-    #     try:
-    #         # Wait up to 20 seconds for the element with both classes to appear
-    #         WebDriverWait(driver, 20).until(
-    #             EC.presence_of_element_located((By.CSS_SELECTOR, "div.body.yf-5ef8bf"))
-    #         )
-    #         return True
-
-    #     except Exception:
-    #         # If the timeout occurs, just return False and move forward without raising or logging an error
-    #         return False
-
-    # @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
-    def scrape_recent_news_for_sym(self, link, driver):
-        driver.get(link)
-        time.sleep(3)
-        # self.wait_for_article_body(driver)
-    
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        title = driver.title
-        published_at = self.get_published_at(soup)
-        if not published_at:
-            self.logger.info(f"[scraper] No published at found for {title}")
-
-        article_text_str = self.get_article_content(soup, link)
-        if not article_text_str:
-            return
-            
-        res = {
-            "content": article_text_str, 
-            "title": title, 
-            "link": link,
-        }
-
-        if published_at:
-            res["published_at"] = published_at
-
-        return res
-
-    # @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
-    def get_articles_for_stock(self, url, opts, svc):
+    def scrape_recent_news_for_sym(self, link):
+        # print("Link is ", link)
         try:
-            with webdriver.Chrome(service=svc, options=opts) as driver:
-                articles_for_stock = set()
-                driver.get(url)
-                self.logger.info("Letting page load...")
-                time.sleep(5)
-                # self.wait_for_stock_article_links(driver)
-               
-                main_page_source = driver.page_source
-                soup = BeautifulSoup(driver.page_source, 'html.parser')
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            }
+            response = requests.get(link, headers=headers)
+            if response.status_code != 200:
+                raise Exception("Failed to get 200 response from Yahoo link: ", link)
 
-                filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
-                if not filtered_stories:
-                    # self.logger.info(f"[scraper]: No filtered stories found for url {url}")
-                    raise Exception("no stories found")
-                    
-                atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
-                if not atags:
-                    self.logger.info(f"scraper] No atags found for url {url}")
-                    raise Exception("no tags found")
-                    
-                for atag in atags:
-                    link = atag.get('href')
-                    if not link:
-                        continue
-                    articles_for_stock.add(link)
-                res = {
-                    "articles_for_stock": list(articles_for_stock),
-                }
-                return res
+            main_page_source = response.text
+            soup = BeautifulSoup(main_page_source, 'html.parser')
+
+            title = str(uuid.uuid4())
+            published_at = self.get_published_at(soup)
+            
+            if not published_at:
+                self.logger.info(f"[scraper] No published at found for {title}")
+
+            article_text_str = self.get_article_content(soup, link)
+            if not article_text_str:
+                return
+            
+            res = {
+                "content": article_text_str, 
+                "title": title, 
+                "link": link,
+            }
+            if published_at:
+                res["published_at"] = published_at
+
+            return res
+        except Exception as e:
+            print("CAUGHT FAILED SCRAPE")
+
+    # @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
+    def get_articles_for_stock(self, url):
+        try:
+            articles_for_stock = set()
+            response = requests.get(url)
+            if response.status_code != 200:
+                raise Exception("Failed to get 200 response from Yahoo")
+        
+            # self.wait_for_stock_article_links(driver)
+            
+            main_page_source = response.text
+            soup = BeautifulSoup(main_page_source, 'html.parser')
+
+            filtered_stories = soup.find('div', class_=lambda x: x and 'filtered-stories' in x)
+            if not filtered_stories:
+                # self.logger.info(f"[scraper]: No filtered stories found for url {url}")
+                raise Exception("no stories found")
+                
+            atags = filtered_stories.find_all("a", class_=lambda x: x and 'subtle-link' in x)
+            if not atags:
+                self.logger.info(f"scraper] No atags found for url {url}")
+                raise Exception("no tags found")
+                
+            for atag in atags:
+                link = atag.get('href')
+                if not link:
+                    continue
+                articles_for_stock.add(link)
+
+            res = {
+                "articles_for_stock": list(articles_for_stock),
+            }
+            return res
 
         except Exception as e:
             self.logger.info(e)
             raise Exception(e)
   
-    def get_stories_for_stock(self, articles_for_stock, stock, opts, svc):
+    def get_stories_for_stock(self, articles_for_stock, stock):
         if not articles_for_stock:
             return
 
-        with webdriver.Chrome(service=svc, options=opts) as driver:
-            stories_for_stock = []
+        stories_for_stock = []
 
-            # these are all the stories for the stock
-            for link in list(articles_for_stock):
-                self.logger.info(f"[scraper] scraping {link}, stock {stock}")
-                try: 
-                    story = self.scrape_recent_news_for_sym(link, driver)
-                    if not story:
-                        continue
-
-                    stories_for_stock.append(story)
-                except Exception as e:
-                    self.logger.info("Failed to get story for ", link)
+        # these are all the stories for the stock
+        for link in list(articles_for_stock):
+            time.sleep(10)
+            self.logger.info(f"[scraper] scraping {link}, stock {stock}")
+            try: 
+                story = self.scrape_recent_news_for_sym(link)
+                if not story:
                     continue
-            
-            return stories_for_stock
+
+                stories_for_stock.append(story)
+            except Exception as e:
+                self.logger.info("Failed to get story for ", link)
+        
+        return stories_for_stock
     
     def save_scraped_stock_data(self, stock, run_id, success=True):
         sps_collection = self.db["stock_prices"]
@@ -248,25 +244,27 @@ class Yahoo:
         return failed_stocks
         
         
-    def run_scraper(self, stock, timestamp, run_id, opts, svc, worker_idx):
+    def run_scraper(self, stock, run_id, worker_idx):
         url = f"https://finance.yahoo.com/quote/{stock}"
         self.logger.info(f"[scraper] getting articles for url {url}, worker_idx {worker_idx}")
 
         try:
-            scraped_stock_res = self.get_articles_for_stock(url, opts, svc)
+            scraped_stock_res = self.get_articles_for_stock(url)
+
             articles_for_stock = scraped_stock_res["articles_for_stock"]
             if not articles_for_stock:
                 self.logger.info(f"[scraper] no articles found for stock {stock}")
                 return
                 
-            stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock, opts, svc)
+            stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock)
+            print("GOT BACK STORIES FOR STOCK ", len(stories_for_stock))
             if not stories_for_stock:
                 self.logger.info(f"No stories found for stock {stock}")
                 return
 
             # self.logger.info(f"[scraper] found {len(stories_for_stock)} for stock {stock}")
             self.logger.info(f"[scraper] Saving articles to storage for stock {stock}")
-            self.save_articles_to_storage(stories_for_stock, stock, timestamp, run_id)
+            self.save_articles_to_storage(stories_for_stock, stock, run_id)
             return scraped_stock_res
             # self.logger.info(f"[scraper] completed for stock {stock}, ts: {timestamp}")
         except Exception as e:
@@ -277,31 +275,31 @@ class Yahoo:
         sema.acquire()   
         self.logger.info(f"Starting scraper for worker {worker_idx}, stock {stock} at time {datetime.now(timezone.utc)}")
         
-        opts = webdriver.ChromeOptions()
+        # opts = webdriver.ChromeOptions()
         app_env = os.environ.get('APP_ENV', 'LOCAL')
-        if app_env != "LOCAL":
-            opts.add_argument("--headless")
-            opts.add_argument("--disable-gpu")
-            opts.add_argument("window-size=1920,1080")
-            opts.add_argument("--no-sandbox")
-            opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
+        # if app_env != "LOCAL":
+        #     opts.add_argument("--headless")
+        #     opts.add_argument("--disable-gpu")
+        #     opts.add_argument("window-size=1920,1080")
+        #     opts.add_argument("--no-sandbox")
+        #     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36")
         
         # local dev
-        path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
-        if platform.system() == "Linux":
-            path = "/webdrivers/chromedriver"
+        # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
+        # if platform.system() == "Linux":
+        #     path = "/webdrivers/chromedriver"
 
-        if not os.path.exists(path):
-            self.logger.info(f"Invalid file path, downloading chromedriver")
-            path = ChromeDriverManager().install()
+        # if not os.path.exists(path):
+        #     self.logger.info(f"Invalid file path, downloading chromedriver")
+        #     path = ChromeDriverManager().install()
         
-        svc = ChromeService(path)
+        # svc = ChromeService(path)
         # path = "/Users/mattpinchover/.wdm/drivers/chromedriver/mac64/129.0.6668.89/chromedriver-mac-arm64/chromedriver"
         # svc = ChromeService(path)
         
 
         try: 
-            scraped_stock_res = self.run_scraper(stock, timestamp, run_id, opts, svc, worker_idx)
+            scraped_stock_res = self.run_scraper(stock, run_id, worker_idx)
             self.save_scraped_stock_data(stock, run_id, scraped_stock_res is not None)
             self.logger.info(f"[scraper] SUCCESS on stock {stock}")
         except Exception as e:
@@ -312,32 +310,18 @@ class Yahoo:
         finally:
             sema.release()
 
-    def save_run(self, run_id, cur_time):
-        runs_collection = self.db["runs"]
-
-        doc = {
-            "run_id": run_id,
-            "created_at": cur_time,
-        }
-        runs_collection.insert_one(doc)
-
-    def get_stocks_list(self, num_stocks=None):
-        key = "stocks_list/stocks_list.txt"
+    def get_stocks_list(self, stock_list):
+        key = f"stocks_list/{stock_list}"
         stock_list_as_blob = self.bucket.blob(key)
         stock_list = stock_list_as_blob.download_as_string().decode("utf-8-sig")
         stocks = stock_list.splitlines()
         stocks = [stock.strip() for stock in stocks if stock.strip()]
-
-        # Optionally limit the number of stocks if num_stocks is provided
-        if num_stocks is not None:
-            stocks = stocks[:num_stocks]
         
         return stocks
 
-    def start(self, num_stocks):
+    def start(self, stock_list):
         run_id = str(uuid.uuid4())
-                
-        stocks = self.get_stocks_list(num_stocks)
+        stocks = self.get_stocks_list(stock_list)
         self.logger.info(f"Starting scrapes for run id: {run_id}, num stocks: {len(stocks)}")
 
         max_threads = 5
@@ -345,7 +329,7 @@ class Yahoo:
         threads = list()
         
         utc_now = datetime.now(timezone.utc)
-        self.save_run(run_id, utc_now)
+        # self.save_run(run_id, utc_now)
 
         for idx, stock in enumerate(stocks):
             args = (stock, utc_now, sema, run_id, idx)
@@ -356,10 +340,10 @@ class Yahoo:
             time.sleep(5)
             thread.start()
 
-            if idx >= 1 and idx % 10 == 0:
-                self.logger.info("Sleeping for 5 minutes")
-                # time.sleep(300) # 5 min
-                time.sleep(900)
+            # if idx >= 1 and idx % 10 == 0:
+            #     self.logger.info("Sleeping for 5 minutes")
+            #     # time.sleep(300) # 5 min
+            #     time.sleep(900)
         
         for thread in threads:
             thread.join()

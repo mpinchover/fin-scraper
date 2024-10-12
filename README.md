@@ -5,7 +5,7 @@ docker run -v /dev/shm:/dev/shm -v /home/mattpinchover/webdrivers/chromedriver-l
 Make sure to install chromedriver to /home/mattpinchover/webdrivers/chromedriver-linux64
 wget https://storage.googleapis.com/chrome-for-testing-public/129.0.6668.100/linux64/chromedriver-linux64.zip
 
-curl -X POST "localhost:5000/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"num_stocks": 4}'
+curl -X POST "localhost:5000/scrape-list" -H "Content-Type: application/json" -d '{"stock_list": "test_list.txt"}'
 curl -X POST "localhost:8080/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
 
 gcloud run deploy
@@ -15,6 +15,7 @@ WORKING CONFIGS
 gcloud run deploy --memory 16Gi --timeout=15m --cpu 4
 
 DEPLOY
+gcloud run deploy --source . --memory 4Gi --timeout=60m --cpu 2 --concurrency 1
 gcloud run deploy --source . --memory 16Gi --timeout=30m --cpu 8 --concurrency 3
 gcloud run deploy --source . --memory 32Gi --timeout=30m --cpu 8 --concurrency 5 ATTEMPTING
 
@@ -77,3 +78,6 @@ Just set severity=INFO
 
 RESTART DOCKER
 sudo systemctl restart docker
+
+Common bugs
+Make sure that actual service acccount, not just the parent acccount, has all the roles enabled.

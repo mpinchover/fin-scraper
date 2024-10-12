@@ -1,5 +1,4 @@
 import os
-# https://cloud-run-helloworld-1002527450505.us-central1.run.app
 from flask import Flask, jsonify, request
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,6 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from bs4 import BeautifulSoup
 from yahoo.yahoo import Yahoo
+from job_controller.job_controller import JobController
 from predict.predict import Predict
 import logging
 from logging import Formatter, FileHandler
@@ -27,8 +27,10 @@ from google.cloud import storage
 import sys
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from google.oauth2 import service_account
+from google.cloud import storage
+import json
 
-load_dotenv()
 
 path = "/app/svc_acc_key.json"
 if os.environ.get("APP_ENV", None) != "PRODUCTION":
@@ -41,6 +43,8 @@ logging_handler = logging_client.setup_logging()
 stream_handler = logging.StreamHandler()
 logging.getLogger().addHandler(stream_handler)
 
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.debug = True
 
@@ -48,7 +52,7 @@ app.debug = True
 logger = logging.getLogger(__name__)
 
 # build storage client
-storage_client = storage.Client.from_service_account_json(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+storage_client = storage.Client()
 
 uri = os.environ["MONGO_URI"]
 db_client = MongoClient(uri, server_api=ServerApi('1'))
@@ -57,6 +61,19 @@ db = db_client.get_database()
 yahoo_scraper = Yahoo(logger, storage_client, db)
 # pred = Predict(app.logger)
 
+@app.route("/start-jobs")
+def start_jobs():
+    try:
+        start_time = time.time()
+
+        jc = JobController(logger, storage_client, db)
+        run_id = jc.start()
+
+        total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds
+
+        return {"success": True, "run_id": run_id, "total_elapsed_time": total_elapsed_time}
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -74,25 +91,18 @@ def predict():
         app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/execute-scrape-jobs", methods=["POST"])
-def execute_scrape_jobs():       
+@app.route("/scrape-list", methods=["POST"])
+def scrape_list():       
     try:  
         start_time = time.time()
 
-        # get the stocks list, lookback
         data = request.get_json()
-        num_stocks = data.get('num_stocks')
-        # lookback = data.get('lookback')
+        stock_list = data.get('stock_list')
 
-        if not num_stocks:
-            return jsonify({"success": False, "error": "num_stocks required"}), 401
-        # if not lookback:
-        #     return jsonify({"success": False, "error": "lookback required"}), 401
+        if not stock_list:
+            return jsonify({"success": False, "error": "stock_list required"}), 401
 
-        # lookback = int(lookback)
-
-        run_id = yahoo_scraper.start(num_stocks) 
-        # pred.start(run_id, lookback)
+        run_id = yahoo_scraper.start(stock_list) 
 
         total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds
 
@@ -111,6 +121,4 @@ def hello_world():
 
 
 if __name__ == "__main__":
-    
-
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
