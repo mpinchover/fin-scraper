@@ -156,7 +156,7 @@ class Yahoo:
 
             return res
         except Exception as e:
-            print("CAUGHT FAILED SCRAPE")
+            self.logger.error("CAUGHT FAILED SCRAPE")
 
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=5))
     def get_articles_for_stock(self, url):
@@ -257,7 +257,7 @@ class Yahoo:
                 return
                 
             stories_for_stock = self.get_stories_for_stock(articles_for_stock, stock)
-            print("GOT BACK STORIES FOR STOCK ", len(stories_for_stock))
+
             if not stories_for_stock:
                 self.logger.info(f"No stories found for stock {stock}")
                 return
