@@ -315,8 +315,8 @@ class Yahoo:
         }
         runs_collection.insert_one(doc)
 
-    def start(self, stock_list):
-        run_id = str(uuid.uuid4())
+    def start(self, stock_list, run_id):
+        # run_id = str(uuid.uuid4())
         stocks = self.get_stocks_list(stock_list)
         self.logger.info(f"Starting scrapes for run id: {run_id}, num stocks: {len(stocks)}")
 
@@ -346,3 +346,4 @@ class Yahoo:
         
         self.logger.info(f"[scraper] Yahoo scraper completed with run_id {run_id}, time {datetime.now(timezone.utc)}")
 
+# 100 units within 40

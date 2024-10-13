@@ -59,7 +59,7 @@ db_client = MongoClient(uri, server_api=ServerApi('1'))
 db = db_client.get_database()
 
 yahoo_scraper = Yahoo(logger, storage_client, db)
-# pred = Predict(app.logger)
+pred = Predict(logger, storage_client, db)
 
 @app.route("/start-jobs")
 def start_jobs():
@@ -80,12 +80,16 @@ def predict():
     try: 
         data = request.get_json()
         lookback = data.get('lookback')
+        run_id = data.get('run_id')
+
         if not lookback:
             return jsonify({"success": False, "error": "lookback required"}), 401
+        if not run_id:
+            return jsonify({"success": False, "error": "run_id required"}), 401
 
         lookback = int(lookback)
-        ts = pred.start(lookback)
-        return {"success": True, "timestamp": 123}
+        ts = pred.start(lookback, run_id)
+        return {"success": True, "run_id": run_id}
     except Exception as e:
         app.logger.error(f"[scraper: error is {e}]")
         app.logger.error(traceback.format_exc())
@@ -98,12 +102,16 @@ def scrape_list():
 
         data = request.get_json()
         stock_list = data.get('stock_list')
+        run_id = data.get('run_id')
 
         if not stock_list:
             return jsonify({"success": False, "error": "stock_list required"}), 401
 
-        run_id = yahoo_scraper.start(stock_list) 
+        if not run_id:
+            return jsonify({"success": False, "error": "run_id required"}), 401
 
+
+        run_id = yahoo_scraper.start(stock_list, run_id) 
         total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds
 
         return jsonify({"success": True, "elapsed_time": f"{total_elapsed_time}s", "run_id": run_id})
@@ -121,4 +129,4 @@ def hello_world():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))

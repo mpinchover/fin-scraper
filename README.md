@@ -1,18 +1,8 @@
-docker build -t markets-scraper .
-docker run -v /dev/shm:/dev/shm -it --env-file .env --rm -p 5000:5000 markets-scraper
-docker run -v /dev/shm:/dev/shm -v /home/mattpinchover/webdrivers/chromedriver-linux64:/webdrivers -it --env-file .env --rm -p 5000:5000 markets-scraper
-
 Make sure to install chromedriver to /home/mattpinchover/webdrivers/chromedriver-linux64
 wget https://storage.googleapis.com/chrome-for-testing-public/129.0.6668.100/linux64/chromedriver-linux64.zip
 
 curl -X POST "localhost:5000/scrape-list" -H "Content-Type: application/json" -d '{"stock_list": "test_list.txt"}'
 curl -X POST "localhost:8080/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
-
-gcloud run deploy
-gcloud run deploy --memory 4Gi --timeout=10m
-
-WORKING CONFIGS
-gcloud run deploy --memory 16Gi --timeout=15m --cpu 4
 
 DEPLOY
 gcloud run deploy --source . --memory 4Gi --timeout=60m --cpu 2 --concurrency 1

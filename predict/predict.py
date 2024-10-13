@@ -14,10 +14,13 @@ model = "gpt-4o-mini"
 MAX_LEN_WORDS_PER_REQ = 60000
 
 class Predict:
-    def __init__(self, logger):
-        self.set_envs()
-        self.db = None
+    def __init__(self, logger, storage, db):
+        self.db = db
         self.logger = logger
+        self.storage = storage
+
+        STORAGE_BUCKET=os.environ["STORAGE_BUCKET"]
+        self.bucket = self.storage.get_bucket(STORAGE_BUCKET)
         
     def get_db(self):
         if self.db is None: 
@@ -25,30 +28,6 @@ class Predict:
             client = MongoClient(uri, server_api=ServerApi('1'))
             self.db = client.get_database()
         return self.db
-
-    def set_envs(self):
-        path = "/app/svc_acc_key.json"
-        if os.environ.get("APP_ENV", None) != "PRODUCTION":
-            path = "../svc_acc_key.json"
-            
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
-        self.storage_client = storage.Client.from_service_account_json(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
-        self.bucket = self.storage_client.get_bucket(os.environ["STORAGE_BUCKET"])
-
-    def get_latest_articles_scrape(self):
-        scraped_dates = []
-        dated_scrapes = self.bucket.list_blobs(prefix='scrapes/', delimiter='/')
-        
-        for page in dated_scrapes.pages:
-            for prefix in page.prefixes:
-                ts = prefix.split('scrapes/')[1].strip('/')
-                scraped_dates.append(ts)
-
-        if not scraped_dates:
-            return 
-            
-        latest_directory = sorted(scraped_dates, reverse=True)[0]
-        return latest_directory
 
     def collect_saved_articles_from_storage(self, scrapes):
         articles = []
@@ -81,7 +60,7 @@ class Predict:
     # modify this to save it in storage
     def save_openai_resp_as_csv(self, df, df_filtered, run_id, lookback):   
         cur_time = datetime.now(timezone.utc)     
-        key = f"predictions/{run_id}/{lookback}_predictions.csv"
+        key = f"predictions/{run_id}/{cur_time}_{lookback}h_predictions.csv"
         csv_data = df.to_csv(index=False)
 
         # Create a blob (the object in GCS)
@@ -213,7 +192,7 @@ class Predict:
         return filtered_df
 
     # store this in the bucket
-    def get_stocks_list(self, run_id, lookback): 
+    def get_stocks_list(self, lookback, run_id): 
         cur_time = datetime.now(timezone.utc)
 
         self.logger.info(f"[predict] Get stocks list with lookback {lookback}, from time {cur_time}")
@@ -252,8 +231,8 @@ class Predict:
     
     # start point
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
-    def run_analysis(self, run_id, lookback):
-        stocks = self.get_stocks_list(run_id, lookback)
+    def run_analysis(self, lookback, run_id):
+        stocks = self.get_stocks_list(lookback, run_id)
         if not stocks:
             self.logger.info(f"[predict] not stocks found for prediction")
             return 
