@@ -14,10 +14,11 @@ model = "gpt-4o-mini"
 MAX_LEN_WORDS_PER_REQ = 60000
 
 class Predict:
-    def __init__(self, logger, storage, db):
+    def __init__(self, logger, storage, db, email_controller):
         self.db = db
         self.logger = logger
         self.storage = storage
+        self.email = email_controller
 
         STORAGE_BUCKET=os.environ["STORAGE_BUCKET"]
         self.bucket = self.storage.get_bucket(STORAGE_BUCKET)
@@ -58,9 +59,10 @@ class Predict:
         
 
     # modify this to save it in storage
-    def save_openai_resp_as_csv(self, df, df_filtered, run_id, lookback):   
-        cur_time = datetime.now(timezone.utc)     
-        key = f"predictions/{run_id}/{cur_time}_{lookback}h_predictions.csv"
+    def save_openai_resp_as_csv(self, df, run_id, lookback):   
+        cur_time = datetime.now(timezone.utc)    
+        cur_time_str = cur_time.strftime("%Y%m%d_%H%M%S")  # Format as a string 
+        key = f"predictions/{run_id}/{cur_time_str}_{lookback}h_predictions.csv"
         csv_data = df.to_csv(index=False)
 
         # Create a blob (the object in GCS)
@@ -75,7 +77,8 @@ class Predict:
             "predicted_at": cur_time,
         })
 
-        key_filtered = f"predictions/{run_id}/{lookback}_predictions_filtered.csv"
+        df_filtered = self.filter_and_order_df(df)
+        key_filtered = f"predictions/{run_id}/{cur_time_str}_{lookback}_predictions_filtered.csv"
         blob_filtered = self.bucket.blob(key_filtered)
         csv_data_filtered = df_filtered.to_csv(index=False)
         blob_filtered.upload_from_string(csv_data_filtered, content_type='text/csv')
@@ -228,13 +231,30 @@ class Predict:
         self.logger.info(f"[predict] found {len(dup_articles_set)} duplicate articles")
         return recent_scrapes_dict
     
+    def get_email_body(self, df, run_id, lookback):
+        df_copy = df.copy()
+        # get the top 3 values by the yes count
+        unique_yes_counts = df_copy['YES'].unique()
+        top_3_yes_counts = unique_yes_counts[:3] if len(unique_yes_counts) >= 3 else unique_yes_counts
+        top_symbols_df = df_copy[df_copy['YES'].isin(top_3_yes_counts)]
+        # Convert to a dictionary with symbols as keys and YES counts as values
+        top_symbols_dict = top_symbols_df.set_index('Symbol')['YES'].to_dict()
+        email_body = "\n".join(f"{symbol}: {yes_count}" for symbol, yes_count in top_symbols_dict.items())
+        email_body += f"\nrun_id: {run_id}, lookback: {lookback}"
     
+        return email_body
+
+    def send_out_stock_info(self, df, run_id, lookback):
+        email_body = self.get_email_body(df, run_id, lookback)
+        recipient_email = os.environ["TO_EMAIL"]
+        self.email.send_email(email_body, recipient_email)
+
     # start point
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
     def run_analysis(self, lookback, run_id):
         stocks = self.get_stocks_list(lookback, run_id)
         if not stocks:
-            self.logger.info(f"[predict] not stocks found for prediction")
+            self.logger.info(f"[predict] no stocks found for prediction")
             return 
 
         rows = {}
@@ -248,8 +268,10 @@ class Predict:
                 
             rows[stock_sym] = responses
         df = self.convert_rows_to_csv(rows)
-        df_filtered = self.filter_and_order_df(df)
-        self.save_openai_resp_as_csv(df, df_filtered, run_id, lookback)
+        
+        self.save_openai_resp_as_csv(df, run_id, lookback)
+        self.send_out_stock_info(df, run_id, lookback)
+        # email out top stocks by YES value (just the top 3 )
     
     def start(self, run_id, lookback):
         self.run_analysis(run_id, lookback)

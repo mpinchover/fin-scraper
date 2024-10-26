@@ -4,11 +4,6 @@ wget https://storage.googleapis.com/chrome-for-testing-public/129.0.6668.100/lin
 curl -X POST "localhost:5000/scrape-list" -H "Content-Type: application/json" -d '{"stock_list": "test_list.txt"}'
 curl -X POST "localhost:8080/execute-scrape-jobs" -H "Content-Type: application/json" -d '{"stocks": ["wmt"], "lookback": 24}'
 
-DEPLOY
-gcloud run deploy --source . --memory 4Gi --timeout=60m --cpu 2 --concurrency 1
-gcloud run deploy --source . --memory 16Gi --timeout=30m --cpu 8 --concurrency 3
-gcloud run deploy --source . --memory 32Gi --timeout=30m --cpu 8 --concurrency 5 ATTEMPTING
-
 curl -X POST "HOST" \
  -H "Content-Type: application/json" \
  -d '{"run_id": "999e7073-8118-4052-84e2-1220765a92d8", "stock": "amzn"}'
@@ -62,7 +57,11 @@ INSTALL DOCKER
 https://docs.sevenbridges.com/docs/install-docker-on-linux
 
 COPY file
-gcloud compute scp .env markets-scraper:PATH/ON/MACHINE --zone ZONE
+
+INSTANCE_NAME=instance
+PATH=path/on/machine
+ZONE=zone
+gcloud compute scp .env $INSTANCE_NAME:$PATH --zone $ZONE
 
 LOGS
 https://console.cloud.google.com/logs/query;query=severity%3DINFO;cursorTimestamp=2024-10-06T23:17:36.619774Z;duration=PT30S?authuser=1&hl=en&project=awesome-pilot-437816-c2
@@ -73,3 +72,5 @@ sudo systemctl restart docker
 
 Common bugs
 Make sure that actual service acccount, not just the parent acccount, has all the roles enabled.
+
+gcloud compute ssh --project=PROJECT --zone=ZONE --ssh-flag="-ServerAliveInterval=30" INSTANCE

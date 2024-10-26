@@ -1,6 +1,9 @@
 # image name
 IMAGE_NAME = markets-scraper
 
+test:
+	python -m unittest discover -s test
+
 build:
 	docker build -t $(IMAGE_NAME) .
 
@@ -10,5 +13,6 @@ run: build
 clean:
 	docker rmi $(IMAGE_NAME)
 
+rebuild: clean build run test
 
-rebuild: clean build run
+.PHONY: all test clean

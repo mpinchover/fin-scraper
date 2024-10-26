@@ -27,6 +27,7 @@ import uuid
 import traceback
 import platform
 
+
 class Yahoo:
     def __init__(self, logger, storage, db):
 
@@ -39,7 +40,7 @@ class Yahoo:
     
     def get_blob_key(self, article, directory):
             # sanitized_title = re.sub(r'[\/:*?"<>|]', '', article['title']).lower().translate(str.maketrans('', '', string.punctuation)).replace(" ", "_")
-            key = f"{directory}/{article["title"]}.txt"
+            key = f"{directory}/{article["link"]}.txt"
             new_blob = self.bucket.blob(key)
             return new_blob, key
 

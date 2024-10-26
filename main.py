@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from yahoo.yahoo import Yahoo
 from job_controller.job_controller import JobController
 from predict.predict import Predict
+from email_controller.email_controller import EmailController
 import logging
 from logging import Formatter, FileHandler
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ from pymongo.server_api import ServerApi
 from google.oauth2 import service_account
 from google.cloud import storage
 import json
+
 
 
 path = "/app/svc_acc_key.json"
@@ -57,9 +59,11 @@ storage_client = storage.Client()
 uri = os.environ["MONGO_URI"]
 db_client = MongoClient(uri, server_api=ServerApi('1'))
 db = db_client.get_database()
+email_controller = EmailController(logger)
 
 yahoo_scraper = Yahoo(logger, storage_client, db)
-pred = Predict(logger, storage_client, db)
+pred = Predict(logger, storage_client, db, email_controller)
+
 
 @app.route("/start-jobs")
 def start_jobs():
