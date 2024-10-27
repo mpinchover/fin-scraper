@@ -74,3 +74,7 @@ Common bugs
 Make sure that actual service acccount, not just the parent acccount, has all the roles enabled.
 
 gcloud compute ssh --project=PROJECT --zone=ZONE --ssh-flag="-ServerAliveInterval=30" INSTANCE
+
+Trading
+https://alpaca.markets/sdks/python/api_reference/trading_api.html
+https://app.alpaca.markets/paper/dashboard/overview
