@@ -14,11 +14,12 @@ model = "gpt-4o-mini"
 MAX_LEN_WORDS_PER_REQ = 60000
 
 class Predict:
-    def __init__(self, logger, storage, db, email_controller):
+    def __init__(self, logger, storage, db, email_controller, trading_controller):
         self.db = db
         self.logger = logger
         self.storage = storage
         self.email = email_controller
+        self.trading_controller = trading_controller
 
         STORAGE_BUCKET=os.environ["STORAGE_BUCKET"]
         self.bucket = self.storage.get_bucket(STORAGE_BUCKET)
@@ -231,23 +232,46 @@ class Predict:
         self.logger.info(f"[predict] found {len(dup_articles_set)} duplicate articles")
         return recent_scrapes_dict
     
-    def get_email_body(self, df, run_id, lookback):
-        df_copy = df.copy()
-        # get the top 3 values by the yes count
-        unique_yes_counts = df_copy['YES'].unique()
-        top_3_yes_counts = unique_yes_counts[:3] if len(unique_yes_counts) >= 3 else unique_yes_counts
-        top_symbols_df = df_copy[df_copy['YES'].isin(top_3_yes_counts)]
-        # Convert to a dictionary with symbols as keys and YES counts as values
-        top_symbols_dict = top_symbols_df.set_index('Symbol')['YES'].to_dict()
+    def get_email_body(self, top_symbols_dict, run_id, lookback):
+        
         email_body = "\n".join(f"{symbol}: {yes_count}" for symbol, yes_count in top_symbols_dict.items())
         email_body += f"\nrun_id: {run_id}, lookback: {lookback}"
     
         return email_body
+    
+    def get_stocks_by_yes_count(self, df, count):
+        # Create a copy of the DataFrame to avoid modifying the original
+        df_copy = df.copy()
 
-    def send_out_stock_info(self, df, run_id, lookback):
-        email_body = self.get_email_body(df, run_id, lookback)
+        # Get unique YES counts
+        unique_yes_counts = df_copy['YES'].unique()
+
+        # Filter counts to include only those >= 4
+        filtered_yes_counts = [yes for yes in unique_yes_counts if yes >= 4]
+
+        # Sort the filtered counts in descending order
+        sorted_yes_counts = sorted(filtered_yes_counts, reverse=True)
+
+        # Get the top 'count' values if available
+        top_yes_counts = sorted_yes_counts[:count] if len(sorted_yes_counts) >= count else sorted_yes_counts
+
+        # Filter the DataFrame based on the filtered top YES counts
+        top_symbols_df = df_copy[df_copy['YES'].isin(top_yes_counts)]
+
+        # Convert the result to a dictionary with Symbol as key and YES count as value
+        top_symbols_dict = top_symbols_df.set_index('Symbol')['YES'].to_dict()
+
+        return top_symbols_dict
+    
+    def send_out_stock_info(self, top_symbols_dict, run_id, lookback):
+        email_body = self.get_email_body(top_symbols_dict, run_id, lookback)
         recipient_email = os.environ["TO_EMAIL"]
         self.email.send_email(email_body, recipient_email)
+
+    def execute_trade(self, top_symbols_dict):
+        symbols = list(top_symbols_dict.keys())
+        orders = self.trading_controller.build_orders(symbols)
+        self.trading_controller.submit_orders(orders)
 
     # start point
     # @retry(stop=stop_after_attempt(3), wait=wait_random(min=25, max=35))
@@ -270,7 +294,12 @@ class Predict:
         df = self.convert_rows_to_csv(rows)
         
         self.save_openai_resp_as_csv(df, run_id, lookback)
-        self.send_out_stock_info(df, run_id, lookback)
+        top_symbols_dict = self.get_stocks_by_yes_count(df, 4)
+        print("DF IS ")
+        print(top_symbols_dict)
+        self.send_out_stock_info(top_symbols_dict, run_id, lookback)
+        self.execute_trade(top_symbols_dict)
+        # now execute the trade for symbol, yes_count in top_symbols_dict.items()
         # email out top stocks by YES value (just the top 3 )
     
     def start(self, run_id, lookback):

@@ -31,13 +31,17 @@ from pymongo.server_api import ServerApi
 from google.oauth2 import service_account
 from google.cloud import storage
 import json
-
+from alpaca.trading.client import TradingClient
+from trading.trading import TradingController
 
 
 path = "/app/svc_acc_key.json"
 if os.environ.get("APP_ENV", None) != "PRODUCTION":
     path = "svc_acc_key.json"
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
+uri = os.environ["MONGO_URI"]
+alpaca_secret = os.environ["ALPACA_SECRET"]
+alpaca_key = os.environ["ALPACA_KEY"]
 
 logging_client = gcp_logging.Client(project="awesome-pilot-437816-c2")
 logging_handler = logging_client.setup_logging()
@@ -56,14 +60,15 @@ logger = logging.getLogger(__name__)
 # build storage client
 storage_client = storage.Client()
 
-uri = os.environ["MONGO_URI"]
 db_client = MongoClient(uri, server_api=ServerApi('1'))
 db = db_client.get_database()
+trading_client = TradingClient(alpaca_key, alpaca_secret, paper=True)
+
 email_controller = EmailController(logger)
+trading_controller = TradingController(trading_client, logger)
 
 yahoo_scraper = Yahoo(logger, storage_client, db)
-pred = Predict(logger, storage_client, db, email_controller)
-
+pred = Predict(logger, storage_client, db, email_controller, trading_controller)
 
 @app.route("/start-jobs")
 def start_jobs():
@@ -122,14 +127,19 @@ def scrape_list():
     except Exception as e:
         app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
+    
+# add another route here
+# you should probably save the stock symbols into a list with the date that you will make the orders.
+# grab the stocks, make sure no duplicates, and buy
 
 
 @app.route("/")
 def hello_world():
-    logger = logging.getLogger(__name__)
-    logger.info('Creating a logging message')
+    # name = os.environ["WINE"]
+    # logger = logging.getLogger(__name__)
+    # logger.info('Creating a logging message')
 
-    return f"Hello world!"
+    return f"Hello {"Matt"}!"
 
 
 if __name__ == "__main__":
