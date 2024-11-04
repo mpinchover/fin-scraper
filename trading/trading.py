@@ -7,6 +7,11 @@ class TradingController:
         self.trading_client = trading_client
         self.logger = logger
 
+    def sell_shares(self):
+        # get all shares you have
+        # sell each of them
+        pass 
+
     # return buying power as an int
     def get_buying_power_in_cents(self):
         acc = self.trading_client.get_account()
@@ -50,7 +55,11 @@ class TradingController:
         return orders
 
     def submit_orders(self, orders):
-        self.logger.info("Attempting to submit market orders...")
+        if not orders:
+            self.logger.info("No orders provided to submit market orders")
+            return 
+        
+        self.logger.info(f"Attempting to submit {len(orders)} market orders...")
         for order in orders:
             market_order = self.trading_client.submit_order(
                 order_data=order

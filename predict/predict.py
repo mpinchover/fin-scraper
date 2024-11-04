@@ -295,8 +295,7 @@ class Predict:
         
         self.save_openai_resp_as_csv(df, run_id, lookback)
         top_symbols_dict = self.get_stocks_by_yes_count(df, 4)
-        print("DF IS ")
-        print(top_symbols_dict)
+
         self.send_out_stock_info(top_symbols_dict, run_id, lookback)
         self.execute_trade(top_symbols_dict)
         # now execute the trade for symbol, yes_count in top_symbols_dict.items()

@@ -62,7 +62,7 @@ storage_client = storage.Client()
 
 db_client = MongoClient(uri, server_api=ServerApi('1'))
 db = db_client.get_database()
-trading_client = TradingClient(alpaca_key, alpaca_secret, paper=True)
+trading_client = TradingClient(alpaca_key, alpaca_secret, paper=False)
 
 email_controller = EmailController(logger)
 trading_controller = TradingController(trading_client, logger)
@@ -128,6 +128,15 @@ def scrape_list():
         app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
     
+@app.route("/sell-orders", methods=["POST"])
+def sell_orders():
+    try:
+        trading_controller.sell_shares()
+    except Exception as e:
+        app.logger.error(f"[scraper: error is {e}]")
+        app.logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # add another route here
 # you should probably save the stock symbols into a list with the date that you will make the orders.
 # grab the stocks, make sure no duplicates, and buy
