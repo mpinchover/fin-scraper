@@ -8,9 +8,8 @@ class TradingController:
         self.logger = logger
 
     def sell_shares(self):
-        # get all shares you have
-        # sell each of them
-        pass 
+        print("SELLING SHARES")
+        self.trading_client.close_all_positions(cancel_orders=True)
 
     # return buying power as an int
     def get_buying_power_in_cents(self):

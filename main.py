@@ -132,6 +132,7 @@ def scrape_list():
 def sell_orders():
     try:
         trading_controller.sell_shares()
+        return jsonify({"success": True})
     except Exception as e:
         app.logger.error(f"[scraper: error is {e}]")
         app.logger.error(traceback.format_exc())

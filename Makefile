@@ -13,9 +13,6 @@ run: build
 clean:
 	docker rmi $(IMAGE_NAME)
 
-source:
-	./activate.sh
-
 rebuild: clean build run test
 
 .PHONY: all test clean
