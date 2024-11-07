@@ -10,6 +10,9 @@ build:
 run: build
 	docker run -v /dev/shm:/dev/shm -it --env-file .env --rm -p 5001:5001 $(IMAGE_NAME)
 
+run-api: build
+	docker run -v /dev/shm:/dev/shm --env-file .env --rm -p 5001:5001 $(IMAGE_NAME)
+
 clean:
 	docker rmi $(IMAGE_NAME)
 
