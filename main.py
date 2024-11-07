@@ -36,9 +36,9 @@ from trading.trading import TradingController
 
 
 path = "/app/svc_acc_key.json"
-if os.environ.get("APP_ENV", None) != "PRODUCTION":
-    path = "svc_acc_key.json"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
+if os.path.exists(path):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
+
 uri = os.environ["MONGO_URI"]
 alpaca_secret = os.environ["ALPACA_SECRET"]
 alpaca_key = os.environ["ALPACA_KEY"]
@@ -119,7 +119,6 @@ def scrape_list():
         if not run_id:
             return jsonify({"success": False, "error": "run_id required"}), 401
 
-
         run_id = yahoo_scraper.start(stock_list, run_id) 
         total_elapsed_time = int(time.time() - start_time)  # Convert to integer seconds
 
@@ -138,19 +137,14 @@ def sell_orders():
         app.logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
-# add another route here
-# you should probably save the stock symbols into a list with the date that you will make the orders.
-# grab the stocks, make sure no duplicates, and buy
 
-
-@app.route("/")
+@app.route("/read")
 def hello_world():
-    # name = os.environ["WINE"]
-    # logger = logging.getLogger(__name__)
-    # logger.info('Creating a logging message')
-
-    return f"Hello {"Matt"}!"
-
+    return jsonify({
+        "mongo": os.getenv("MONGO_URI", "NONE"),
+        "alpaca": os.getenv("ALPACA_KEY", "NONE"),
+        "google": os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "NONE"),
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))

@@ -78,3 +78,5 @@ gcloud compute ssh --project=PROJECT --zone=ZONE --ssh-flag="-ServerAliveInterva
 Trading
 https://alpaca.markets/sdks/python/api_reference/trading_api.html
 https://app.alpaca.markets/paper/dashboard/overview
+
+gcloud run deploy --concurrency=1

@@ -38,15 +38,22 @@ class Yahoo:
         STORAGE_BUCKET=os.environ["STORAGE_BUCKET"]
         self.bucket = self.storage.get_bucket(STORAGE_BUCKET)
     
-    def get_blob_key(self, article, directory):
-            # sanitized_title = re.sub(r'[\/:*?"<>|]', '', article['title']).lower().translate(str.maketrans('', '', string.punctuation)).replace(" ", "_")
-            key = f"{directory}/{article["link"]}.txt"
-            new_blob = self.bucket.blob(key)
-            return new_blob, key
+    # def get_blob_key(self, article, directory):
+    #         # sanitized_title = re.sub(r'[\/:*?"<>|]', '', article['title']).lower().translate(str.maketrans('', '', string.punctuation)).replace(" ", "_")
+            
+            
+    #         # key = f"{directory}/{article["link"]}.txt"
+    #         key_uuid = str(uuid.uuid4())
+    #         key = f"{directory}/{key_uuid}.txt"
+    #         new_blob = self.bucket.blob(key)
+    #         return new_blob, key
 
     def create_scrape_record(self, article, directory, stock_sym, run_id):
-        new_blob, key = self.get_blob_key(article, directory)
-
+        # new_blob, key = self.get_blob_key(article, directory)
+        key_uuid = str(uuid.uuid4())
+        key = f"{directory}/{key_uuid}.txt"
+        new_blob = self.bucket.blob(key)
+        
         try: 
             new_blob.upload_from_string(json.dumps(article))
         except Exception as e:

@@ -39,11 +39,21 @@ class Predict:
                 continue
 
             key = scrape['bucket_key']
-            blob = self.bucket.blob(key)
-            content = blob.download_as_string()
-            if not content:
-                self.logger.info("Couldn't get article content from bucket")
+            try:
+                blob = self.bucket.blob(key)
+            except Exception as e:
+                self.logger.info(f"failed to get blob article from storage: {key}")
                 continue
+            
+            try: 
+                content = blob.download_as_string()
+                if not content:
+                    self.logger.info("Couldn't get article content from bucket")
+                    continue
+            except Exception as e:
+                self.logger.info(f"failed to download article from storage as string {key}")
+                continue
+
 
             if len(content) < 100:
                 self.logger.info("article is too short, skipping")
@@ -202,7 +212,7 @@ class Predict:
         self.logger.info(f"[predict] Get stocks list with lookback {lookback}, from time {cur_time}")
     
         lookback_from = cur_time - timedelta(hours=lookback) # change this to 6 hours lookback
-        dup_articles_set = set()
+        # dup_articles_set = set()
 
         db = self.get_db()
         collection = db['scrapes']
@@ -216,11 +226,11 @@ class Predict:
                 print("url is not in scrape")
                 continue
 
-            url_key = scrape['url']
-            if url_key in dup_articles_set:
-                continue 
+            # url_key = scrape['url']
+            # if url_key in dup_articles_set:
+            #     continue 
 
-            dup_articles_set.add(url_key)
+            # dup_articles_set.add(url_key)
       
             stock = scrape['stock']
             if stock not in recent_scrapes_dict:
@@ -229,7 +239,7 @@ class Predict:
                 
             recent_scrapes_dict[stock].append(scrape)
         # should convert this to a map and list stock -> dup
-        self.logger.info(f"[predict] found {len(dup_articles_set)} duplicate articles")
+        # self.logger.info(f"[predict] found {len(dup_articles_set)} duplicate articles")
         return recent_scrapes_dict
     
     def get_email_body(self, top_symbols_dict, run_id, lookback):
@@ -282,7 +292,7 @@ class Predict:
             return 
 
         rows = {}
-        current_time = datetime.now().astimezone(timezone.utc)
+        # current_time = datetime.now().astimezone(timezone.utc)
 
         for stock, scrapes_for_stock in stocks.items():
             stock_sym = stock.lower()

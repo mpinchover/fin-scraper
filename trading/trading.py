@@ -1,6 +1,7 @@
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, OrderSide, TimeInForce
 
+SAFEGUARD = 25000
 class TradingController:
     # pass in trading client
     def __init__(self, trading_client: TradingClient, logger):
@@ -8,11 +9,10 @@ class TradingController:
         self.logger = logger
 
     def sell_shares(self):
-        print("SELLING SHARES")
         self.trading_client.close_all_positions(cancel_orders=True)
 
     # return buying power as an int
-    def get_buying_power_in_cents(self):
+    def get_buying_power_in_cents(self, safeguard):
         acc = self.trading_client.get_account()
         if not acc:
             raise Exception("account not found")
@@ -20,8 +20,16 @@ class TradingController:
             raise Exception("buying power not found")
         
         buying_power_as_int = float(acc.buying_power) 
-        buying_power_in_cents = int(buying_power_as_int * 100)
-        return buying_power_in_cents
+        buying_power_with_safeguard = buying_power_as_int - safeguard
+
+        if buying_power_with_safeguard > 0 and buying_power_with_safeguard <= 6000:
+            buying_power_in_cents = int(buying_power_with_safeguard * 100)
+            self.logger.info(f"Buying power with safeguard is {buying_power_in_cents}")
+            return buying_power_in_cents
+        else:
+            self.logger.info(f"Buying power with safeguard is too high: {buying_power_with_safeguard}")
+            raise Exception("buying power too high")
+            
 
     def get_allocated_cents_per_stock(self, buy_power, num_stocks):
         return buy_power // num_stocks
@@ -35,7 +43,7 @@ class TradingController:
             self.logger.info("No stocks provided to build market orders")
             return 
         
-        buy_power_cents = self.get_buying_power_in_cents()
+        buy_power_cents = self.get_buying_power_in_cents(SAFEGUARD)
         self.logger.info(f"buy power in cents is {buy_power_cents}")
         cents_per_stock = self.get_allocated_cents_per_stock(buy_power_cents, len(stocks_to_buy))
         self.logger.info(f"cents per stock is {cents_per_stock}")
