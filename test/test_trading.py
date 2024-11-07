@@ -11,7 +11,7 @@ class TestTradingController(unittest.TestCase):
     def test_get_buying_power_in_cents(self):
         # trading account
         mock_account = Mock()
-        mock_account.buying_power = "30000"
+        mock_account.cash = "30000"
 
         mock_logger = Mock()
 
@@ -28,7 +28,7 @@ class TestTradingController(unittest.TestCase):
     def test_get_buying_power_in_cents(self):
         # trading account
         mock_account = Mock()
-        mock_account.buying_power = "30000"
+        mock_account.cash = "30000"
 
         mock_logger = Mock()
 
@@ -47,7 +47,7 @@ class TestTradingController(unittest.TestCase):
     def test_get_buying_power_in_cents_no_buying_power(self):
         # trading account
         mock_account = Mock()
-        mock_account.buying_power = None
+        mock_account.cash = None
 
         mock_logger = Mock()
 
@@ -59,7 +59,7 @@ class TestTradingController(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             buying_power_in_cents = tc.get_buying_power_in_cents(10)
 
-        self.assertTrue("buying power not found" in str(context.exception))
+        self.assertTrue("account cash not found" in str(context.exception))
 
     def test_get_buying_power_in_cents_no_acc(self):
         # trading client
@@ -101,7 +101,7 @@ class TestTradingController(unittest.TestCase):
 
     def test_build_orders(self):
         mock_account = Mock()
-        mock_account.buying_power = "29555"
+        mock_account.cash = "29555"
         mock_logger = Mock()
 
         # trading client

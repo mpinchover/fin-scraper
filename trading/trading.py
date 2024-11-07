@@ -16,18 +16,18 @@ class TradingController:
         acc = self.trading_client.get_account()
         if not acc:
             raise Exception("account not found")
-        if not acc.buying_power:
-            raise Exception("buying power not found")
+        if not acc.cash:
+            raise Exception("account cash not found")
         
-        buying_power_as_int = float(acc.buying_power) 
-        buying_power_with_safeguard = buying_power_as_int - safeguard
+        cash_as_int = float(acc.cash) 
+        cash_with_safeguard = cash_as_int - safeguard
 
-        if buying_power_with_safeguard > 0 and buying_power_with_safeguard <= 6000:
-            buying_power_in_cents = int(buying_power_with_safeguard * 100)
-            self.logger.info(f"Buying power with safeguard is {buying_power_in_cents}")
-            return buying_power_in_cents
+        if cash_with_safeguard > 0 and cash_with_safeguard <= 7000:
+            cash_in_cents_with_safeguard = int(cash_with_safeguard * 100)
+            self.logger.info(f"cash power safeguard is {cash_in_cents_with_safeguard}")
+            return cash_in_cents_with_safeguard
         else:
-            self.logger.info(f"Buying power with safeguard is too high: {buying_power_with_safeguard}")
+            self.logger.info(f"Buying power with safeguard is too high: {cash_with_safeguard}")
             raise Exception("buying power too high")
             
 
