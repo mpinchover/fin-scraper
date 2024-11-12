@@ -307,7 +307,7 @@ class Predict:
         top_symbols_dict = self.get_stocks_by_yes_count(df, 4)
 
         self.send_out_stock_info(top_symbols_dict, run_id, lookback)
-        self.execute_trade(top_symbols_dict)
+        # self.execute_trade(top_symbols_dict)
         # now execute the trade for symbol, yes_count in top_symbols_dict.items()
         # email out top stocks by YES value (just the top 3 )
     
